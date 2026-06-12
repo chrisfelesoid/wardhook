@@ -1,0 +1,29 @@
+value_taking_flags:
+  - target
+  - t
+  - mount
+  - m
+  - uts
+  - u
+  - ipc
+  - i
+  - net
+  - n
+  - pid
+  - p
+  - user
+  - U
+  - cgroup
+  - C
+  - time
+  - T
+  - wd
+  - root
+  - r
+  - setuid
+  - S
+  - setgid
+  - G
+  - env
+recurse:
+  terminator: true

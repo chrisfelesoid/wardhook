@@ -1,0 +1,36 @@
+{
+  "folders": [
+    {
+      "name": "ROOT",
+      "path": "."
+    }
+  ],
+  "settings": {
+    "terminal.integrated.defaultProfile.linux": "bash",
+    "files.exclude": {
+      "**/.git": false
+    },
+    "runOnSave.commands": [
+      {
+        "match": "\\.toml$",
+        "command": "mise exec -- taplo lint ${file} && mise exec -- taplo format ${file}",
+        "runIn": "backend"
+      },
+      {
+        "match": "\\.(yaml|yml)$",
+        "command": "mise exec -- yamlfmt ${file}",
+        "runIn": "backend"
+      },
+      {
+        "match": "\\.sh$",
+        "command": "mise exec -- shellcheck ${file} && mise exec -- shfmt -ci -w ${file}",
+        "runIn": "backend"
+      },
+      {
+        "languages": ["json", "jsonc"],
+        "command": "mise exec -- biome lint ${file} && mise exec -- biome format --write ${file}",
+        "runIn": "backend"
+      }
+    ]
+  }
+}

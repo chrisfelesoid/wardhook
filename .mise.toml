@@ -1,0 +1,85 @@
+[settings]
+experimental = true
+
+[settings.github]
+use_git_credentials = true
+
+[tools]
+go = "1.26.3"
+
+# tool
+"aqua:anthropics/claude-code" = "2.1.138"
+"aqua:j178/prek"              = { version = "0.4.3", postinstall = "mise generate git-pre-commit -w --task=pre-commit" }
+"aqua:jqlang/jq"              = "1.8.1"
+"aqua:nektos/act"             = "0.2.88"
+
+# lint/formatter
+"aqua:biomejs/biome"                             = "2.4.15"
+"aqua:editorconfig-checker/editorconfig-checker" = "3.6.1"
+"aqua:golangci/golangci-lint"                    = "2.12.2"
+"aqua:google/yamlfmt"                            = "0.21.0"
+"aqua:koalaman/shellcheck"                       = "0.11.0"
+"aqua:mvdan/sh"                                  = "3.13.1"
+"aqua:rhysd/actionlint"                          = "1.7.12"
+"aqua:tamasfe/taplo"                             = "0.10.0"
+"go:github.com/google/go-licenses/v2"            = "2.0.1"
+"go:github.com/goreleaser/goreleaser/v2"         = "2.16.0"
+
+# CI/checker
+"aqua:gitleaks/gitleaks"      = "8.30.1"
+"aqua:suzuki-shunsuke/pinact" = "4.0.0"
+"aqua:zizmorcore/zizmor"      = "1.25.2"
+
+[tasks.pre-commit]
+run = "prek run"
+
+[tasks."lint:editorconfig"]
+run = "ec"
+
+[tasks."lint:taplo"]
+run = "taplo lint"
+
+[tasks."lint:shellcheck"]
+run = "find . -type f -name \"*.sh\" -exec shellcheck {} +"
+
+[tasks."lint:biome"]
+run = "biome lint"
+
+[tasks."lint:golangci-lint"]
+run = "golangci-lint run ./..."
+
+[tasks."format:taplo"]
+run = "taplo format"
+
+[tasks."format:yamlfmt"]
+run = "yamlfmt"
+
+[tasks."format:shfmt"]
+run = "shfmt -d -ci"
+
+[tasks."format:biome"]
+run = "biome format --write"
+
+[tasks."format:golangci-lint"]
+run = "golangci-lint fmt"
+
+[tasks.test]
+run = "go test ./... -cover"
+
+[tasks.build]
+description = "Cross-compile wardhook for all supported platforms into ./bin/"
+run = """
+set -e
+mkdir -p ./bin
+for target in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64 windows-amd64; do
+    goos="${target%-*}"
+    goarch="${target#*-}"
+    output="./bin/wardhook-${target}"
+    if [ "$goos" = "windows" ]; then
+        output="${output}.exe"
+    fi
+    echo "==> ${output}"
+    CGO_ENABLED=0 GOOS="$goos" GOARCH="$goarch" \\
+        go build -ldflags="-s -w" -o "$output" ./cmd/wardhook
+done
+"""

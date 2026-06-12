@@ -1,0 +1,46 @@
+value_taking_flags:
+  - name
+  - hostname
+  - h
+  - network
+  - net
+  - volume
+  - v
+  - env
+  - e
+  - env-file
+  - port
+  - p
+  - publish
+  - label
+  - l
+  - mount
+  - workdir
+  - w
+  - user
+  - u
+  - entrypoint
+  - dns
+  - add-host
+  - device
+  - cap-add
+  - cap-drop
+  - ipc
+  - pid
+  - uts
+  - cgroupns
+  - userns
+  - platform
+  - log-driver
+  - log-opt
+  - cidfile
+  - cpus
+  - memory
+  - m
+recurse:
+  terminator: true
+  subcommands:
+    run:
+      skip: 1
+    exec:
+      skip: 1

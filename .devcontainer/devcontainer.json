@@ -1,0 +1,25 @@
+{
+  "name": "wardhook",
+  "dockerComposeFile": ["./compose.yaml"],
+  "service": "wardhook",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "appuser",
+  "updateRemoteUserUID": true,
+  "postCreateCommand": "mise trust -a && mise install",
+  "features": {
+    "ghcr.io/devcontainers/features/docker-in-docker:3.0.1": {}
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        // This setting has no effect in the project's settings.json.
+        "extensions.autoUpdate": false,
+        "extensions.autoCheckUpdates": false
+      },
+      "extensions": [
+        "pucelle.run-on-save@1.11.2",
+        "editorconfig.editorconfig@0.18.2"
+      ]
+    }
+  }
+}

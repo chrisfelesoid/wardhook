@@ -1,0 +1,20 @@
+value_taking_flags:
+  - project
+  - region
+  - zone
+  - account
+  - configuration
+  - verbosity
+  - log-http-redact-token
+  - billing-project
+  - access-token-file
+  - flags-file
+  - format
+  - filter
+  - sort-by
+  - limit
+  - page-size
+  - impersonate-service-account
+recurse:
+  flags: [command]
+  terminator: true

@@ -1,0 +1,9 @@
+services:
+  wardhook:
+    build:
+      context: ..
+      dockerfile: ./.devcontainer/Dockerfile
+    platform: linux/amd64
+    tty: true
+    volumes:
+      - ..:/workspace
