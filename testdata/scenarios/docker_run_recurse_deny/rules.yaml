@@ -1,0 +1,8 @@
+version: 1
+rules:
+  - name: block-rm-recursive
+    tool: Bash
+    match:
+      command: rm
+      flags_all: [r, f]
+    action: deny

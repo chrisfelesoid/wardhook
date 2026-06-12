@@ -1,0 +1,82 @@
+default_stages: [pre-commit]
+repos:
+  - repo: local
+    hooks:
+      - id: gitleaks
+        name: Detect hardcoded secrets
+        entry: mise exec -- gitleaks protect --verbose --redact --staged
+        language: system
+        pass_filenames: false
+
+      - id: zizmor
+        name: Static analysis for GitHub Actions
+        entry: mise exec -- zizmor
+        language: system
+        files: ^\.github/workflows/.*\.(yaml|yml)$
+
+      - id: pinact
+        name: Pinning GitHub Actions
+        entry: mise exec -- pinact run -check
+        language: system
+        files: ^\.github/workflows/.*\.(yaml|yml)$
+
+      - id: actionlint
+        name: Lint GitHub Actions
+        entry: mise exec -- actionlint
+        language: system
+        files: ^\.github/workflows/.*\.(yaml|yml)$
+
+      - id: editorconfig-check
+        name: Lint basic rule
+        entry: mise exec -- ec
+        language: system
+        types: [text]
+
+      - id: taplo-lint
+        name: Lint toml
+        entry: mise exec -- taplo lint
+        language: system
+        files: \.(toml)$
+
+      - id: taplo-format
+        name: Format check toml
+        entry: mise exec -- taplo format --check
+        language: system
+        files: \.(toml)$
+
+      - id: yaml-format
+        name: Format check yaml
+        entry: mise exec -- yamlfmt -lint
+        language: system
+        files: \.(yaml|yml)$
+
+      - id: shell-lint
+        name: Lint shell script
+        entry: mise exec -- shellcheck
+        language: system
+        files: \.(sh)$
+
+      - id: shell-format
+        name: Format check shell script
+        entry: mise exec -- shfmt -d -ci
+        language: system
+        files: \.(sh)$
+
+      - id: json-lint
+        name: Lint json
+        entry: mise exec -- biome lint
+        language: system
+        files: \.(json|jsonc)$
+
+      - id: json-format
+        name: Format check json
+        entry: mise exec -- biome format
+        language: system
+        files: \.(json|jsonc)$
+
+      - id: golangci-lint
+        name: Lint golang
+        entry: mise exec -- golangci-lint run
+        language: system
+        files: \.(go)$
+        pass_filenames: false

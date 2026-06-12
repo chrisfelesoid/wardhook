@@ -1,0 +1,15 @@
+version: 1
+rules:
+  - name: deny-terraform-prod
+    tool: Bash
+    match:
+      command: terraform
+      flag_values:
+        - name: chdir
+          glob:
+            mode: any
+            patterns:
+              - "environments/prod"
+              - "environments/prod/**"
+    action: deny
+    reason: "production terraform requires manual approval"

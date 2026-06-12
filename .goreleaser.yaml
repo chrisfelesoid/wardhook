@@ -1,0 +1,62 @@
+version: 2
+
+project_name: wardhook
+
+before:
+  hooks:
+    - go mod tidy
+    - sh -c 'rm -rf .licenses && mkdir -p .licenses/third_party'
+    - go-licenses save ./cmd/wardhook --save_path=.licenses/third_party --force --ignore github.com/chrisfelesoid/wardhook
+    - sh -c 'cp "$(go env GOROOT)/LICENSE" .licenses/go.LICENSE'
+
+builds:
+  - id: wardhook
+    main: ./cmd/wardhook
+    binary: wardhook
+    env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    ldflags:
+      - -s -w -X main.version={{.Version}} -X main.commit={{.Commit}}
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ignore:
+      - goos: windows
+        goarch: arm64
+
+archives:
+  - id: wardhook
+    name_template: >-
+      wardhook_{{ .Version }}_{{ .Os }}_{{ .Arch }}
+    formats:
+      - tar.gz
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+    files:
+      - LICENSE
+      - src: .licenses/third_party/**/*
+        dst: licenses/third_party
+      - src: .licenses/go.LICENSE
+        dst: licenses/go.LICENSE
+
+checksum:
+  name_template: checksums.txt
+  algorithm: sha256
+
+snapshot:
+  version_template: "{{ .Tag }}-next"
+
+release:
+  draft: false
+  prerelease: auto
+
+changelog:
+  use: github-native

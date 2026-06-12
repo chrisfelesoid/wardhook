@@ -1,0 +1,15 @@
+version: 1
+rules:
+  - name: deny-chmod-world-writable
+    tool: Bash
+    match:
+      command: chmod
+      regex:
+        mode: any
+        patterns:
+          - '^[0-7]?[0-9]?7[0-9]?7$'
+          - '^[augo]*\+[rwx]*w[rwx]*$'
+      glob:
+        mode: any
+        patterns: ["/etc/**", "/usr/**", "/var/**"]
+    action: deny

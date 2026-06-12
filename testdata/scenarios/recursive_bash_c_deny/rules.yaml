@@ -1,0 +1,13 @@
+version: 1
+defaults:
+  cli_specs:
+    bash:
+      recurse:
+        flags: [c]
+rules:
+  - name: block-rm-recursive
+    tool: Bash
+    match:
+      command: rm
+      flags_all: [r, f]
+    action: deny

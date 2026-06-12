@@ -1,0 +1,7 @@
+version: 1
+defaults:
+  cli_specs:
+    bash:
+      recurse:
+        flags: [c]
+rules: []

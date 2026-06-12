@@ -1,0 +1,7 @@
+doublestar: true
+gitignore_excludes: true
+include:
+  - ./**/*.{yaml,yml}
+formatter:
+  type: basic
+  retain_line_breaks_single: true

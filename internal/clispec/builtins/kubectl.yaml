@@ -1,0 +1,30 @@
+value_taking_flags:
+  - namespace
+  - n
+  - context
+  - container
+  - c
+  - kubeconfig
+  - cluster
+  - user
+  - as
+  - as-group
+  - as-uid
+  - certificate-authority
+  - client-certificate
+  - client-key
+  - request-timeout
+  - server
+  - s
+  - token
+  - tls-server-name
+  - cache-dir
+  - profile
+  - profile-output
+  - v
+  - vmodule
+recurse:
+  terminator: true
+  subcommands:
+    exec:
+      skip: 1
