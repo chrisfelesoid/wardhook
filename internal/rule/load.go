@@ -96,6 +96,9 @@ func validate(cfg *Config) error {
 				return err
 			}
 		}
+		if err := validateSubcommandsTool(i, &r); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -173,6 +176,30 @@ func validateFlagValues(
 				ruleIdx, where, canon)
 		}
 		seen[canon] = struct{}{}
+	}
+	return nil
+}
+
+// validateSubcommandsTool enforces that subcommands_any / subcommands_all
+// (in either match or except) appear only on tool: Bash rules. Args[0]
+// has no consistent "subcommand" meaning on Read/Write/Glob/* etc., so
+// the schema rejects the combination at load time rather than silently
+// matching against file paths or URLs.
+func validateSubcommandsTool(ruleIdx int, r *Rule) error {
+	hasSubcommand := len(r.Match.SubcommandsAny) > 0 ||
+		len(r.Match.SubcommandsAll) > 0
+	if r.Except != nil {
+		hasSubcommand = hasSubcommand ||
+			len(r.Except.SubcommandsAny) > 0 ||
+			len(r.Except.SubcommandsAll) > 0
+	}
+	if !hasSubcommand {
+		return nil
+	}
+	if r.Tool != "Bash" {
+		return fmt.Errorf(
+			"rules[%d] %q: subcommands_any/subcommands_all is only valid for tool: Bash (got tool: %q)",
+			ruleIdx, r.Name, r.Tool)
 	}
 	return nil
 }

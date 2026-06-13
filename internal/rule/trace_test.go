@@ -35,6 +35,24 @@ func TestFormatExceptDetail_PicksFirstNonEmptyClause(t *testing.T) {
 			want: "flags_any [force]",
 		},
 		{
+			name: "subcommands_all when no command/flags",
+			spec: rule.MatchSpec{SubcommandsAll: []string{"push"}},
+			want: "subcommands_all [push]",
+		},
+		{
+			name: "subcommands_any when no command/flags/subcommands_all",
+			spec: rule.MatchSpec{SubcommandsAny: []string{"status", "log"}},
+			want: "subcommands_any [status log]",
+		},
+		{
+			name: "flags_any precedes subcommands_any (existing order preserved)",
+			spec: rule.MatchSpec{
+				FlagsAny:       []string{"force"},
+				SubcommandsAny: []string{"push"},
+			},
+			want: "flags_any [force]",
+		},
+		{
 			name: "glob first pattern",
 			spec: rule.MatchSpec{Glob: &rule.GlobMatch{
 				Mode: rule.GlobModeAll, Patterns: []string{"/tmp/**", "**/build/**"},

@@ -188,6 +188,8 @@ rules: [ ... ]                # 必須、ルールのリスト
 | `flags_any` | `[]string` | 列挙されたフラグのうち少なくとも 1 つが一致 |
 | `flag_aliases` | `map[string][]string` | ローカルなエイリアステーブル: `r: [recursive]` で `--recursive` を `-r` と等価に扱う |
 | `flag_values` | `[]FlagValueMatch` | 捕捉したフラグの値に対するマッチ。各エントリは `{name, glob?, regex?}` (`glob`/`regex` のいずれかが必須、両方指定時は AND)。下記「フラグ値のマッチング」を参照。 |
+| `subcommands_all` | `[]string` | (Bash のみ) `Args[0]` がリストの全要素と一致 (実質単一マッチ)。後述の「サブコマンドマッチング」を参照 |
+| `subcommands_any` | `[]string` | (Bash のみ) `Args[0]` がリストのいずれかと一致 (完全一致)。後述の「サブコマンドマッチング」を参照 |
 | `glob` | `*GlobMatch` | `Command.Args` に対するglobマッチ。`{mode: any\|all, patterns: [...]}`。「globマッチ」を参照。 |
 | `regex` | `*RegexMatch` | `Command.Args` に対する正規表現マッチ。`{mode: any\|all, patterns: [...]}`。`glob` と併用すると AND。「正規表現マッチ」を参照。 |
 
@@ -213,6 +215,64 @@ rules: [ ... ]                # 必須、ルールのリスト
 5. 判定を集約 (deny > ask > allow)。
 6. hookSpecificOutput JSON を stdout に出力し、exit 0。
 ```
+
+## サブコマンドマッチング
+
+`subcommands_any` / `subcommands_all` は `Command.Args[0]` (コマンド名直後の第 1 位置引数) に対する完全一致集合判定です。`tool: Bash` ルールでのみ有効で、`Read` / `Write` / `*` などに指定すると Load 時エラーになります。
+
+`subcommands_*` は必ず `command:` と併用してください。`command:` を省略すると `Args[0]` をあらゆる Bash 呼び出しに対して比較するため、`subcommands_any: [push]` 単独で `docker push` や `helm push` など `push` を第 1 位置引数に持つ別 CLI まで巻き込んでしまいます。
+
+### 例: `git push` / `git fetch` を deny
+
+```yaml
+- name: deny-git-network
+  tool: Bash
+  match:
+    command: git
+    subcommands_any: [push, fetch]
+  action: deny
+```
+
+このルールは `git push origin main` や `git fetch upstream` にはマッチしますが、以下にはマッチしません:
+
+- `git status` — `Args[0] = "status"` (不一致)
+- `git config push.default ...` — `Args[0] = "config"`。`push.default` は `Args[1]` ですが、`subcommands_any` は `Args[0]` のみを見ます。
+
+### フラグとの組み合わせ
+
+```yaml
+match:
+  command: git
+  subcommands_any: [push]
+  flags_any: [f]
+  flag_aliases: { f: [force] }
+```
+
+`git push --force ...` と `git push -f ...` の両方にマッチします。`flags_any` は常に正規化後の短形 (`f`) と比較されるため、長形 `force` は `flag_aliases` 経由で `f` に解決されてから判定されます。
+
+### 多階層サブコマンド
+
+`subcommands_any` は `Args[0]` のみを見ます。`git remote add` のようなパターンには `regex` を併用してください:
+
+```yaml
+match:
+  command: git
+  subcommands_any: [remote]
+  regex: { mode: any, patterns: ['^add$'] }
+```
+
+`regex` は `Args` 全体に対して評価されるため、`add` が任意の位置にあればマッチします。
+
+### セマンティクス一覧
+
+| 条件 | 結果 |
+| --- | --- |
+| `subcommands_any: nil` または `[]` | パススルー (制約なし) |
+| `subcommands_all: nil` または `[]` | パススルー (制約なし) |
+| `subcommands_any: [push]`、`Args = []` | false (fail-closed) |
+| `subcommands_any: [push]`、`Args[0] = "push"` | true |
+| `subcommands_all: [push, fetch]` (複数) | 常に false (`Args[0]` は単一値のため) |
+| `subcommands_any` と `subcommands_all` の併用 | AND |
 
 ## globマッチ
 

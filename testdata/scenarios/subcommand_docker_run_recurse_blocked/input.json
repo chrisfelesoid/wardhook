@@ -1,0 +1,6 @@
+{
+  "session_id": "s",
+  "cwd": "/workspace",
+  "tool_name": "Bash",
+  "tool_input": { "command": "docker run -it ubuntu rm -rf /etc" }
+}

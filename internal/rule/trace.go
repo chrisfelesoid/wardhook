@@ -82,6 +82,12 @@ func formatExceptDetail(spec *MatchSpec) string {
 	if len(spec.FlagsAny) > 0 {
 		return fmt.Sprintf("flags_any %v", spec.FlagsAny)
 	}
+	if len(spec.SubcommandsAll) > 0 {
+		return fmt.Sprintf("subcommands_all %v", spec.SubcommandsAll)
+	}
+	if len(spec.SubcommandsAny) > 0 {
+		return fmt.Sprintf("subcommands_any %v", spec.SubcommandsAny)
+	}
 	if len(spec.FlagValues) > 0 {
 		return fmt.Sprintf("flag_values[%s]", spec.FlagValues[0].Name)
 	}

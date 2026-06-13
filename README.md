@@ -188,6 +188,8 @@ rules: [ ... ]                # required, list of rules
 | `flags_any` | `[]string` | At least one listed flag must match |
 | `flag_aliases` | `map[string][]string` | Local alias table: `r: [recursive]` treats `--recursive` as `-r` |
 | `flag_values` | `[]FlagValueMatch` | Match against captured flag values. Each entry is `{name, glob?, regex?}` (at least one of `glob`/`regex` required; both → AND). See "Flag value matching" below. |
+| `subcommands_all` | `[]string` | (Bash only) `Args[0]` matches every item (effectively single-match). See "Subcommand matching" below. |
+| `subcommands_any` | `[]string` | (Bash only) `Args[0]` matches any item in the list. Exact string comparison. See "Subcommand matching" below. |
 | `glob` | `*GlobMatch` | Glob match against `Command.Args`. `{mode: any\|all, patterns: [...]}`. See "Glob matching". |
 | `regex` | `*RegexMatch` | Regex match against `Command.Args`. `{mode: any\|all, patterns: [...]}`. AND'd with `glob` when both are present. See "Regex matching". |
 
@@ -213,6 +215,64 @@ The `reason` field reports the winning rule.
 5. Aggregate decisions (deny > ask > allow).
 6. Emit hookSpecificOutput JSON to stdout, exit 0.
 ```
+
+## Subcommand matching
+
+`subcommands_any` and `subcommands_all` match against `Command.Args[0]` — the first positional argument after the command name. They are valid only on `tool: Bash` rules; using them on `Read` / `Write` / `*` etc. is a load-time error.
+
+Always pair `subcommands_*` with `command:`. Omitting `command:` matches `Args[0]` across every Bash invocation, so `subcommands_any: [push]` alone would also fire on `docker push`, `helm push`, and any other CLI whose first positional argument happens to be `push`.
+
+### Example: deny `git push` and `git fetch`
+
+```yaml
+- name: deny-git-network
+  tool: Bash
+  match:
+    command: git
+    subcommands_any: [push, fetch]
+  action: deny
+```
+
+This matches `git push origin main` and `git fetch upstream` but **not**:
+
+- `git status` — `Args[0] = "status"` (no match)
+- `git config push.default ...` — `Args[0] = "config"`. `push.default` sits at `Args[1]` but `subcommands_any` only inspects `Args[0]`.
+
+### Combination with flags
+
+```yaml
+match:
+  command: git
+  subcommands_any: [push]
+  flags_any: [f]
+  flag_aliases: { f: [force] }
+```
+
+Matches `git push --force ...` and `git push -f ...`. `flags_any` always compares against the canonical short name (`f`); the long form `force` is resolved to `f` via `flag_aliases` before comparison.
+
+### Multi-level subcommands
+
+`subcommands_any` only inspects `Args[0]`. To target `git remote add`, combine with `regex`:
+
+```yaml
+match:
+  command: git
+  subcommands_any: [remote]
+  regex: { mode: any, patterns: ['^add$'] }
+```
+
+`regex` is evaluated across all of `Args`, so `add` at any position will match.
+
+### Semantics summary
+
+| Condition | Result |
+| --- | --- |
+| `subcommands_any: nil` or `[]` | passthrough (no constraint) |
+| `subcommands_all: nil` or `[]` | passthrough (no constraint) |
+| `subcommands_any: [push]`, `Args = []` | false (fail-closed) |
+| `subcommands_any: [push]`, `Args[0] = "push"` | true |
+| `subcommands_all: [push, fetch]` (multi) | always false — `Args[0]` is a single value |
+| `subcommands_any` + `subcommands_all` together | AND |
 
 ## Glob matching
 
