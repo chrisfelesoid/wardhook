@@ -2,6 +2,7 @@ package rule
 
 import (
 	"regexp"
+	"slices"
 
 	"github.com/bmatcuk/doublestar/v4"
 
@@ -22,6 +23,12 @@ func matchSpec(spec *MatchSpec, cmd parser.Command) bool {
 		return false
 	}
 	if !matchFlagsAny(spec.FlagsAny, canonical) {
+		return false
+	}
+	if !matchSubcommandsAll(spec.SubcommandsAll, cmd.Args) {
+		return false
+	}
+	if !matchSubcommandsAny(spec.SubcommandsAny, cmd.Args) {
 		return false
 	}
 	if !evalGlobMatch(spec.Glob, cmd.Args) {
@@ -55,6 +62,41 @@ func matchFlagsAny(want []string, canonical map[string]struct{}) bool {
 		}
 	}
 	return false
+}
+
+// matchSubcommandsAll reports whether cmd.Args[0] equals every wanted
+// subcommand. Because Args[0] is a single string, the only useful shape
+// is a single-element wants list — the multi-element form exists for
+// API symmetry with flags_all and is documented as effectively
+// "single-match". An empty wants list is passthrough (true). An empty
+// args slice is fail-closed (false), matching the flags_all empty-set
+// rule.
+func matchSubcommandsAll(wants []string, args []string) bool {
+	if len(wants) == 0 {
+		return true
+	}
+	if len(args) == 0 {
+		return false
+	}
+	for _, w := range wants {
+		if args[0] != w {
+			return false
+		}
+	}
+	return true
+}
+
+// matchSubcommandsAny reports whether cmd.Args[0] equals any of the
+// wanted subcommands. Empty wants is passthrough; empty args is
+// fail-closed.
+func matchSubcommandsAny(wants []string, args []string) bool {
+	if len(wants) == 0 {
+		return true
+	}
+	if len(args) == 0 {
+		return false
+	}
+	return slices.Contains(wants, args[0])
 }
 
 func canonicalizeFlags(flags map[string]struct{}, aliases flagnorm.Aliases) map[string]struct{} {
