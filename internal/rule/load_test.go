@@ -888,8 +888,12 @@ func TestLoad_SubcommandsOnWildcard_Errors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected Load to fail for subcommands on tool: *")
 	}
-	if !strings.Contains(err.Error(), "subcommands") {
-		t.Errorf("error should mention subcommands: %q", err.Error())
+	msg := err.Error()
+	if !strings.Contains(msg, "subcommands") || !strings.Contains(msg, "Bash") {
+		t.Errorf("error should explain subcommands+Bash constraint: %q", msg)
+	}
+	if !strings.Contains(msg, "bogus-wildcard") {
+		t.Errorf("error should mention rule name: %q", msg)
 	}
 }
 
@@ -912,8 +916,12 @@ func TestLoad_SubcommandsInExceptOnNonBash_Errors(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected Load to fail for subcommands in except on tool: Write")
 	}
-	if !strings.Contains(err.Error(), "subcommands") {
-		t.Errorf("error should mention subcommands: %q", err.Error())
+	msg := err.Error()
+	if !strings.Contains(msg, "subcommands") || !strings.Contains(msg, "Bash") {
+		t.Errorf("error should explain subcommands+Bash constraint: %q", msg)
+	}
+	if !strings.Contains(msg, "bogus-except") {
+		t.Errorf("error should mention rule name: %q", msg)
 	}
 }
 
