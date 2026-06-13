@@ -1,0 +1,12 @@
+{
+  "session_id": "sess-2",
+  "turn_id": "turn-2",
+  "transcript_path": null,
+  "cwd": "/workspace",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-test",
+  "permission_mode": "default",
+  "tool_name": "Read",
+  "tool_input": { "file_path": "./app/.env" },
+  "tool_use_id": "tool-2"
+}
