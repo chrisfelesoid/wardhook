@@ -1,0 +1,8 @@
+version: 1
+rules:
+  - name: deny-git-network
+    tool: Bash
+    match:
+      command: git
+      subcommands_any: [push, fetch]
+    action: deny

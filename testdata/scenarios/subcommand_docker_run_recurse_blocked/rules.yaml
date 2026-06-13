@@ -1,0 +1,8 @@
+version: 1
+rules:
+  - name: deny-docker-run
+    tool: Bash
+    match:
+      command: docker
+      subcommands_any: [run]
+    action: deny
