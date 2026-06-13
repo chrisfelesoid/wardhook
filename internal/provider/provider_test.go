@@ -43,6 +43,7 @@ func implementations() []provider.Provider {
 	return []provider.Provider{
 		provider.ClaudeProvider{},
 		provider.CodexProvider{},
+		provider.CursorProvider{},
 	}
 }
 
