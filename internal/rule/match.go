@@ -69,8 +69,8 @@ func matchFlagsAny(want []string, canonical map[string]struct{}) bool {
 // is a single-element wants list — the multi-element form exists for
 // API symmetry with flags_all and is documented as effectively
 // "single-match". An empty wants list is passthrough (true). An empty
-// args slice is fail-closed (false), matching the flags_all empty-set
-// rule.
+// args slice is fail-closed (false): if the command has no positional
+// arguments there is nothing to match a subcommand against.
 func matchSubcommandsAll(wants []string, args []string) bool {
 	if len(wants) == 0 {
 		return true
