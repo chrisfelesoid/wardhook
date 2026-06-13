@@ -35,13 +35,15 @@ type Rule struct {
 
 // MatchSpec describes the predicates a parsed command must satisfy.
 type MatchSpec struct {
-	Command     string              `yaml:"command,omitempty"`
-	FlagsAll    []string            `yaml:"flags_all,omitempty"`
-	FlagsAny    []string            `yaml:"flags_any,omitempty"`
-	FlagAliases map[string][]string `yaml:"flag_aliases,omitempty"`
-	FlagValues  []FlagValueMatch    `yaml:"flag_values,omitempty"`
-	Glob        *GlobMatch          `yaml:"glob,omitempty"`
-	Regex       *RegexMatch         `yaml:"regex,omitempty"`
+	Command        string              `yaml:"command,omitempty"`
+	FlagsAll       []string            `yaml:"flags_all,omitempty"`
+	FlagsAny       []string            `yaml:"flags_any,omitempty"`
+	FlagAliases    map[string][]string `yaml:"flag_aliases,omitempty"`
+	FlagValues     []FlagValueMatch    `yaml:"flag_values,omitempty"`
+	SubcommandsAll []string            `yaml:"subcommands_all,omitempty"`
+	SubcommandsAny []string            `yaml:"subcommands_any,omitempty"`
+	Glob           *GlobMatch          `yaml:"glob,omitempty"`
+	Regex          *RegexMatch         `yaml:"regex,omitempty"`
 }
 
 // FlagValueMatch declares that flag Name must be present in
