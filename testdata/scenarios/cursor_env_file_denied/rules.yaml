@@ -5,5 +5,5 @@ rules:
     match:
       glob:
         mode: any
-        patterns: ["**/.env", "**/.env.*"]
+        patterns: ["**/.env"]
     action: deny
