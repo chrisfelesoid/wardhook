@@ -135,10 +135,13 @@ func TestE2E_Scenarios(t *testing.T) {
 }
 
 func extractDecision(o map[string]any) string {
-	hso, _ := o["hookSpecificOutput"].(map[string]any)
-	if hso == nil {
-		return ""
+	if hso, ok := o["hookSpecificOutput"].(map[string]any); ok {
+		if dec, _ := hso["permissionDecision"].(string); dec != "" {
+			return dec
+		}
 	}
-	dec, _ := hso["permissionDecision"].(string)
-	return dec
+	if dec, _ := o["permission"].(string); dec != "" {
+		return dec
+	}
+	return ""
 }
