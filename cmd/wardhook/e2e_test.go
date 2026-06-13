@@ -46,6 +46,7 @@ func runScenario(t *testing.T, bin, dir string) {
 	inputPath := filepath.Join(dir, "input.json")
 	rulesPath := filepath.Join(dir, "rules.yaml")
 	expectedPath := filepath.Join(dir, "expected.json")
+	providerPath := filepath.Join(dir, "provider.txt")
 
 	input, err := os.ReadFile(inputPath)
 	if err != nil {
@@ -56,7 +57,14 @@ func runScenario(t *testing.T, bin, dir string) {
 		t.Fatalf("expected: %v", err)
 	}
 
-	cmd := exec.Command(bin, "--config", rulesPath)
+	args := []string{}
+	if b, pErr := os.ReadFile(providerPath); pErr == nil {
+		if sub := strings.TrimSpace(string(b)); sub != "" {
+			args = append(args, sub)
+		}
+	}
+	args = append(args, "--config", rulesPath)
+	cmd := exec.Command(bin, args...)
 	cmd.Stdin = strings.NewReader(string(input))
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
