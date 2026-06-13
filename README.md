@@ -188,8 +188,8 @@ rules: [ ... ]                # required, list of rules
 | `flags_any` | `[]string` | At least one listed flag must match |
 | `flag_aliases` | `map[string][]string` | Local alias table: `r: [recursive]` treats `--recursive` as `-r` |
 | `flag_values` | `[]FlagValueMatch` | Match against captured flag values. Each entry is `{name, glob?, regex?}` (at least one of `glob`/`regex` required; both → AND). See "Flag value matching" below. |
-| `subcommands_any` | `[]string` | (Bash only) `Args[0]` matches any item in the list. Exact string comparison. See "Subcommand matching" below. |
 | `subcommands_all` | `[]string` | (Bash only) `Args[0]` matches every item (effectively single-match). See "Subcommand matching" below. |
+| `subcommands_any` | `[]string` | (Bash only) `Args[0]` matches any item in the list. Exact string comparison. See "Subcommand matching" below. |
 | `glob` | `*GlobMatch` | Glob match against `Command.Args`. `{mode: any\|all, patterns: [...]}`. See "Glob matching". |
 | `regex` | `*RegexMatch` | Regex match against `Command.Args`. `{mode: any\|all, patterns: [...]}`. AND'd with `glob` when both are present. See "Regex matching". |
 
@@ -234,7 +234,7 @@ The `reason` field reports the winning rule.
 This matches `git push origin main` and `git fetch upstream` but **not**:
 
 - `git status` — `Args[0] = "status"` (no match)
-- `git config push.default ...` — `Args[0] = "config"`. `push` appears later in `Args` but `subcommands_any` only inspects `Args[0]`.
+- `git config push.default ...` — `Args[0] = "config"`. `push.default` sits at `Args[1]` but `subcommands_any` only inspects `Args[0]`.
 
 ### Combination with flags
 
@@ -242,11 +242,11 @@ This matches `git push origin main` and `git fetch upstream` but **not**:
 match:
   command: git
   subcommands_any: [push]
-  flags_any: [force, f]
+  flags_any: [f]
   flag_aliases: { f: [force] }
 ```
 
-Matches only `git push --force ...` (or `-f`).
+Matches `git push --force ...` and `git push -f ...`. `flags_any` always compares against the canonical short name (`f`); the long form `force` is resolved to `f` via `flag_aliases` before comparison.
 
 ### Multi-level subcommands
 
@@ -266,6 +266,7 @@ match:
 | Condition | Result |
 | --- | --- |
 | `subcommands_any: nil` or `[]` | passthrough (no constraint) |
+| `subcommands_all: nil` or `[]` | passthrough (no constraint) |
 | `subcommands_any: [push]`, `Args = []` | false (fail-closed) |
 | `subcommands_any: [push]`, `Args[0] = "push"` | true |
 | `subcommands_all: [push, fetch]` (multi) | always false — `Args[0]` is a single value |

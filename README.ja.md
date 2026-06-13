@@ -188,8 +188,8 @@ rules: [ ... ]                # 必須、ルールのリスト
 | `flags_any` | `[]string` | 列挙されたフラグのうち少なくとも 1 つが一致 |
 | `flag_aliases` | `map[string][]string` | ローカルなエイリアステーブル: `r: [recursive]` で `--recursive` を `-r` と等価に扱う |
 | `flag_values` | `[]FlagValueMatch` | 捕捉したフラグの値に対するマッチ。各エントリは `{name, glob?, regex?}` (`glob`/`regex` のいずれかが必須、両方指定時は AND)。下記「フラグ値のマッチング」を参照。 |
-| `subcommands_any` | `[]string` | (Bash のみ) `Args[0]` がリストのいずれかと一致 (完全一致)。後述の「サブコマンドマッチング」を参照 |
 | `subcommands_all` | `[]string` | (Bash のみ) `Args[0]` がリストの全要素と一致 (実質単一マッチ)。後述の「サブコマンドマッチング」を参照 |
+| `subcommands_any` | `[]string` | (Bash のみ) `Args[0]` がリストのいずれかと一致 (完全一致)。後述の「サブコマンドマッチング」を参照 |
 | `glob` | `*GlobMatch` | `Command.Args` に対するglobマッチ。`{mode: any\|all, patterns: [...]}`。「globマッチ」を参照。 |
 | `regex` | `*RegexMatch` | `Command.Args` に対する正規表現マッチ。`{mode: any\|all, patterns: [...]}`。`glob` と併用すると AND。「正規表現マッチ」を参照。 |
 
@@ -234,7 +234,7 @@ rules: [ ... ]                # 必須、ルールのリスト
 このルールは `git push origin main` や `git fetch upstream` にはマッチしますが、以下にはマッチしません:
 
 - `git status` — `Args[0] = "status"` (不一致)
-- `git config push.default ...` — `Args[0] = "config"`。`push` は Args 中に登場しますが、`subcommands_any` は `Args[0]` のみを見ます。
+- `git config push.default ...` — `Args[0] = "config"`。`push.default` は `Args[1]` ですが、`subcommands_any` は `Args[0]` のみを見ます。
 
 ### フラグとの組み合わせ
 
@@ -242,11 +242,11 @@ rules: [ ... ]                # 必須、ルールのリスト
 match:
   command: git
   subcommands_any: [push]
-  flags_any: [force, f]
+  flags_any: [f]
   flag_aliases: { f: [force] }
 ```
 
-`git push --force ...` (または `-f`) のみマッチします。
+`git push --force ...` と `git push -f ...` の両方にマッチします。`flags_any` は常に正規化後の短形 (`f`) と比較されるため、長形 `force` は `flag_aliases` 経由で `f` に解決されてから判定されます。
 
 ### 多階層サブコマンド
 
@@ -266,6 +266,7 @@ match:
 | 条件 | 結果 |
 | --- | --- |
 | `subcommands_any: nil` または `[]` | パススルー (制約なし) |
+| `subcommands_all: nil` または `[]` | パススルー (制約なし) |
 | `subcommands_any: [push]`、`Args = []` | false (fail-closed) |
 | `subcommands_any: [push]`、`Args[0] = "push"` | true |
 | `subcommands_all: [push, fetch]` (複数) | 常に false (`Args[0]` は単一値のため) |
