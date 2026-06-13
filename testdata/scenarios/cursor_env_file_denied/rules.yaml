@@ -1,0 +1,9 @@
+version: 1
+rules:
+  - name: deny-sensitive-files
+    tool: "*"
+    match:
+      glob:
+        mode: any
+        patterns: ["**/.env", "**/.env.*"]
+    action: deny
