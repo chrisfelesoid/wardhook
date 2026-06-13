@@ -146,6 +146,8 @@ Cursor emits the `Shell` tool name for shell execution; wardhook normalizes it t
 
 > wardhook evaluates its own rules independently of any Cursor permission state. wardhook `deny` rules block the call regardless of Cursor's own approval flow.
 
+> wardhook also emits `ask` as a fail-closed fallback for parse and config errors. Cursor currently accepts `ask` as a valid `permission` value; a future Cursor release that rejects it would fall back to Cursor's own error behavior for those edge cases.
+
 ## Configuration
 
 wardhook reads `wardhook.yaml` (override via `--config`).

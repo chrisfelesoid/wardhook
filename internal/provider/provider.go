@@ -31,7 +31,7 @@ type Invocation struct {
 // Provider implements the I/O contract for one specific CLI.
 // The rule engine never depends on Provider; only cmd/wardhook does.
 type Provider interface {
-	// Name returns "claude" / "codex" / "gemini" — used for logging and
+	// Name returns "claude" / "codex" / "cursor" / "gemini" — used for logging and
 	// subcommand routing. MUST match the subcommand string and be lowercase.
 	Name() string
 

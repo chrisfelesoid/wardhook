@@ -146,6 +146,8 @@ Cursor はシェル実行を `Shell` ツール名で発火しますが、wardhoo
 
 > wardhook は Cursor 側の permission 状態に依存せず独自にルールを評価します。Cursor 側の承認フローに関わらず、wardhook の `deny` ルールは常に作動します。
 
+> wardhook は parse / config エラー時に `ask` をフェイルクローズドのフォールバックとして出力します。現状の Cursor は `permission: "ask"` を受け付けますが、将来仕様変更で拒否されるようになった場合、それらのエッジケースは Cursor 側のエラー挙動に委ねられます。
+
 ## 設定
 
 wardhook は `wardhook.yaml` を読み込みます (`--config` で上書き可能)。
