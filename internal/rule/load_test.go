@@ -817,3 +817,124 @@ func TestLoad_FlagValues_Regex(t *testing.T) {
 		t.Error("FlagValues[0].Regex should be populated")
 	}
 }
+
+func TestLoad_SubcommandsOnBash_OK(t *testing.T) {
+	t.Parallel()
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-git-push",
+		"    tool: Bash",
+		"    match:",
+		"      command: git",
+		"      subcommands_any: [push, fetch]",
+		"    action: deny",
+		"",
+	}, "\n")
+	p := writeYAML(t, body)
+	cfg, err := rule.Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.Rules) != 1 {
+		t.Fatalf("rules: %d", len(cfg.Rules))
+	}
+	got := cfg.Rules[0].Match.SubcommandsAny
+	if len(got) != 2 || got[0] != "push" || got[1] != "fetch" {
+		t.Errorf("subcommands_any: %v", got)
+	}
+}
+
+func TestLoad_SubcommandsOnRead_Errors(t *testing.T) {
+	t.Parallel()
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: bogus",
+		"    tool: Read",
+		"    match:",
+		"      subcommands_any: [push]",
+		"    action: deny",
+		"",
+	}, "\n")
+	p := writeYAML(t, body)
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load to fail for subcommands on tool: Read")
+	}
+	msg := err.Error()
+	if !strings.Contains(msg, "subcommands") || !strings.Contains(msg, "Bash") {
+		t.Errorf("error should explain subcommands+Bash constraint: %q", msg)
+	}
+	if !strings.Contains(msg, "bogus") {
+		t.Errorf("error should mention rule name: %q", msg)
+	}
+}
+
+func TestLoad_SubcommandsOnWildcard_Errors(t *testing.T) {
+	t.Parallel()
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: bogus-wildcard",
+		`    tool: "*"`,
+		"    match:",
+		"      subcommands_any: [push]",
+		"    action: deny",
+		"",
+	}, "\n")
+	p := writeYAML(t, body)
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load to fail for subcommands on tool: *")
+	}
+	if !strings.Contains(err.Error(), "subcommands") {
+		t.Errorf("error should mention subcommands: %q", err.Error())
+	}
+}
+
+func TestLoad_SubcommandsInExceptOnNonBash_Errors(t *testing.T) {
+	t.Parallel()
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: bogus-except",
+		"    tool: Write",
+		"    match:",
+		`      glob: { mode: any, patterns: ["**/.env"] }`,
+		"    except:",
+		"      subcommands_any: [status]",
+		"    action: deny",
+		"",
+	}, "\n")
+	p := writeYAML(t, body)
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load to fail for subcommands in except on tool: Write")
+	}
+	if !strings.Contains(err.Error(), "subcommands") {
+		t.Errorf("error should mention subcommands: %q", err.Error())
+	}
+}
+
+func TestLoad_SubcommandsEmptyArrayOnRead_OK(t *testing.T) {
+	t.Parallel()
+	// An explicitly empty array is treated as "not specified" — it
+	// must not error even on non-Bash, matching the documented
+	// "len > 0 triggers the tool check" rule.
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: empty-array-on-read",
+		"    tool: Read",
+		"    match:",
+		"      subcommands_any: []",
+		`      glob: { mode: any, patterns: ["**/.env"] }`,
+		"    action: deny",
+		"",
+	}, "\n")
+	p := writeYAML(t, body)
+	if _, err := rule.Load(p); err != nil {
+		t.Fatalf("Load should accept empty subcommands_any on non-Bash: %v", err)
+	}
+}
