@@ -113,6 +113,18 @@ wardhook test --rule block-rm-recursive 'rm -fr ./important'
 - `--tool TOOL` defaults to `Bash`. Supported: `Bash`, `Read`, `Write`, `Edit`, `NotebookEdit`, `Glob`, `WebFetch`, `WebSearch`. `Grep` is not supported because it needs both a path and a pattern.
 - When exactly one `--rule` is passed and its `tool` is a concrete name, that tool is used automatically; otherwise the default is `Bash`.
 
+### 5. Use with Codex (OpenAI)
+
+To run wardhook from Codex CLI's `pre-tool-use` hook, register the `codex` subcommand. Refer to Codex's official hook configuration documentation for the exact file format and key — the configuration shape is still evolving.
+
+```bash
+wardhook codex < codex-pre-tool-use.json
+```
+
+Codex emits the same Claude-vocabulary `tool_name` (`"Bash"`, `"Read"`, ...) and `tool_input` (`{"command": "..."}`, `{"file_path": "..."}`, ...) as Claude Code, so a single `wardhook.yaml` rule set applies to both.
+
+> wardhook evaluates its own rules independently of Codex's `permission_mode`. Even when Codex runs in `bypassPermissions` mode, wardhook `deny` rules still block the call.
+
 ## Configuration
 
 wardhook reads `wardhook.yaml` (override via `--config`).
