@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -41,6 +42,20 @@ func buildBinary(t *testing.T) string {
 	return out
 }
 
+// runScenario executes the wardhook binary against one scenario directory
+// and compares the decision to expected.json.
+//
+// Required files in the scenario directory:
+//   - input.json    : the PreToolUse JSON sent to stdin
+//   - rules.yaml    : wardhook configuration
+//   - expected.json : the expected hookSpecificOutput
+//
+// Optional file:
+//   - provider.txt  : a single word (e.g. "codex") selecting the wardhook
+//     subcommand. If missing, the default (Claude) path is
+//     used. The file is trimmed; an empty trim is treated as
+//     "no subcommand". I/O errors other than file-not-found
+//     fail the test loudly.
 func runScenario(t *testing.T, bin, dir string) {
 	t.Helper()
 	inputPath := filepath.Join(dir, "input.json")
@@ -58,10 +73,16 @@ func runScenario(t *testing.T, bin, dir string) {
 	}
 
 	args := []string{}
-	if b, pErr := os.ReadFile(providerPath); pErr == nil {
+	b, pErr := os.ReadFile(providerPath)
+	switch {
+	case pErr == nil:
 		if sub := strings.TrimSpace(string(b)); sub != "" {
 			args = append(args, sub)
 		}
+	case errors.Is(pErr, os.ErrNotExist):
+		// provider.txt is optional; absence selects the default Claude path.
+	default:
+		t.Fatalf("provider.txt: %v", pErr)
 	}
 	args = append(args, "--config", rulesPath)
 	cmd := exec.Command(bin, args...)
