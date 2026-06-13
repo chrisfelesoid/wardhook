@@ -24,6 +24,7 @@ const (
 	checkSubcommand         = "check"
 	claudeSubcommand        = "claude"
 	codexSubcommand         = "codex"
+	cursorSubcommand        = "cursor"
 	geminiSubcommand        = "gemini"
 	testSubcommand          = "test"
 	exitTestArgError        = 2
@@ -40,6 +41,8 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) int {
 			return runHook(provider.ClaudeProvider{}, stdin, stdout, stderr, args[2:])
 		case codexSubcommand:
 			return runHook(provider.CodexProvider{}, stdin, stdout, stderr, args[2:])
+		case cursorSubcommand:
+			return runHook(provider.CursorProvider{}, stdin, stdout, stderr, args[2:])
 		case geminiSubcommand:
 			return runHook(provider.GeminiProvider{}, stdin, stdout, stderr, args[2:])
 		case validateSubcommand:

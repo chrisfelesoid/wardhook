@@ -272,6 +272,68 @@ func TestRun_DispatchGemini_NotImplemented(t *testing.T) {
 	}
 }
 
+func TestRun_DispatchCursor_AllowsByDefaultWithNoConfig(t *testing.T) {
+	t.Parallel()
+	stdin := `{
+		"conversation_id":"c","generation_id":"g","model":"m",
+		"hook_event_name":"preToolUse","cursor_version":"0.45.0",
+		"workspace_roots":["/workspace"],"user_email":null,
+		"transcript_path":null,
+		"tool_name":"Shell","tool_input":{"command":"ls"},
+		"tool_use_id":"u","cwd":"/workspace","agent_message":""
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "cursor", "--config", "/no/such/file.yaml"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o struct {
+		Permission string `json:"permission"`
+	}
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
+	}
+	if o.Permission != "allow" {
+		t.Errorf("permission: %q", o.Permission)
+	}
+}
+
+func TestRun_DispatchCursor_DeniesShellRmRf(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm-recursive",
+		"    tool: Bash",
+		"    match: {command: rm, flags_all: [r, f]}",
+		"    action: deny",
+	})
+	stdin := `{
+		"conversation_id":"c","generation_id":"g","model":"m",
+		"hook_event_name":"preToolUse","cursor_version":"0.45.0",
+		"workspace_roots":["/workspace"],"user_email":null,
+		"transcript_path":null,
+		"tool_name":"Shell","tool_input":{"command":"rm -fr ./important"},
+		"tool_use_id":"u","cwd":"/workspace","agent_message":""
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "cursor", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o struct {
+		Permission   string `json:"permission"`
+		AgentMessage string `json:"agent_message"`
+	}
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
+	}
+	if o.Permission != "deny" {
+		t.Errorf("permission: %q (out=%s)", o.Permission, out)
+	}
+	if !strings.Contains(o.AgentMessage, "block-rm-recursive") {
+		t.Errorf("agent_message should mention rule: %q", o.AgentMessage)
+	}
+}
+
 func TestRun_RecursiveEval_BashDashCDeny(t *testing.T) {
 	t.Parallel()
 	cfg := writeConfig(t, []string{
