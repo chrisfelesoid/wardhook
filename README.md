@@ -125,6 +125,27 @@ Codex emits the same Claude-vocabulary `tool_name` (`"Bash"`, `"Read"`, ...) and
 
 > wardhook evaluates its own rules independently of Codex's `permission_mode`. Even when Codex runs in `bypassPermissions` mode, wardhook `deny` rules still block the call.
 
+### 6. Use with Cursor
+
+To run wardhook from Cursor's `preToolUse` hook, register `wardhook cursor` in `.cursor/hooks.json`:
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      { "command": "wardhook cursor", "failClosed": true }
+    ]
+  }
+}
+```
+
+`failClosed: true` is recommended so that any wardhook crash blocks the tool call rather than falling back to allow.
+
+Cursor emits the `Shell` tool name for shell execution; wardhook normalizes it to Claude's `Bash` vocabulary internally, so existing `tool: Bash` rules apply without modification. Cursor-specific tools (`Delete`, `Task`, `MCP:*`) can be matched by their original name or via `tool: "*"` cross-tool rules.
+
+> wardhook evaluates its own rules independently of any Cursor permission state. wardhook `deny` rules block the call regardless of Cursor's own approval flow.
+
 ## Configuration
 
 wardhook reads `wardhook.yaml` (override via `--config`).
