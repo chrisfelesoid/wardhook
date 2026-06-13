@@ -1,12 +1,27 @@
 package provider_test
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 
 	"github.com/chrisfelesoid/wardhook/internal/hook"
 	"github.com/chrisfelesoid/wardhook/internal/provider"
 )
+
+const codexSampleInput = `{
+	"session_id": "sess-1",
+	"turn_id": "turn-1",
+	"transcript_path": null,
+	"cwd": "/workspace",
+	"hook_event_name": "PreToolUse",
+	"model": "gpt-test",
+	"permission_mode": "default",
+	"tool_name": "Bash",
+	"tool_input": {"command": "rm -fr ./important"},
+	"tool_use_id": "tool-1"
+}`
 
 func TestCodexProvider_Name(t *testing.T) {
 	t.Parallel()
@@ -15,22 +30,78 @@ func TestCodexProvider_Name(t *testing.T) {
 	}
 }
 
-func TestCodexProvider_ReadInvocation_Panics(t *testing.T) {
+func TestCodexProvider_ReadInvocation_PreservesFields(t *testing.T) {
 	t.Parallel()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic, got none")
-		}
-	}()
-	_, _ = (provider.CodexProvider{}).ReadInvocation(strings.NewReader("{}"))
+	p := provider.CodexProvider{}
+	inv, err := p.ReadInvocation(strings.NewReader(codexSampleInput))
+	if err != nil {
+		t.Fatalf("ReadInvocation: %v", err)
+	}
+	if inv.ToolName != "Bash" {
+		t.Errorf("ToolName: %q", inv.ToolName)
+	}
+	if inv.CWD != "/workspace" {
+		t.Errorf("CWD: %q", inv.CWD)
+	}
+	var ti map[string]any
+	if uErr := json.Unmarshal(inv.ToolInput, &ti); uErr != nil {
+		t.Fatalf("ToolInput unmarshal: %v", uErr)
+	}
+	if ti["command"] != "rm -fr ./important" {
+		t.Errorf("ToolInput.command: %v", ti["command"])
+	}
+	if len(inv.Raw) == 0 {
+		t.Errorf("Raw should not be empty")
+	}
 }
 
-func TestCodexProvider_WriteDecision_Panics(t *testing.T) {
+func TestCodexProvider_ReadInvocation_InvalidJSON(t *testing.T) {
 	t.Parallel()
-	defer func() {
-		if r := recover(); r == nil {
-			t.Fatal("expected panic, got none")
-		}
-	}()
-	_ = (provider.CodexProvider{}).WriteDecision(nil, hook.DecisionAllow, "")
+	p := provider.CodexProvider{}
+	_, err := p.ReadInvocation(strings.NewReader("{not json"))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCodexProvider_ReadInvocation_IgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"session_id": "s",
+		"cwd": "/workspace",
+		"tool_name": "Bash",
+		"tool_input": {"command": "ls"},
+		"future_codex_field": "future value",
+		"another_unknown": {"nested": 1}
+	}`
+	p := provider.CodexProvider{}
+	inv, err := p.ReadInvocation(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocation: %v", err)
+	}
+	if inv.ToolName != "Bash" {
+		t.Errorf("ToolName: %q", inv.ToolName)
+	}
+}
+
+func TestCodexProvider_WriteDecision_Format(t *testing.T) {
+	t.Parallel()
+	var buf bytes.Buffer
+	p := provider.CodexProvider{}
+	if err := p.WriteDecision(&buf, hook.DecisionDeny, "blocked"); err != nil {
+		t.Fatalf("WriteDecision: %v", err)
+	}
+	var out hook.Output
+	if err := json.Unmarshal(buf.Bytes(), &out); err != nil {
+		t.Fatalf("output JSON: %v\n%s", err, buf.String())
+	}
+	if out.HookSpecificOutput.HookEventName != "PreToolUse" {
+		t.Errorf("HookEventName: %q", out.HookSpecificOutput.HookEventName)
+	}
+	if out.HookSpecificOutput.PermissionDecision != hook.DecisionDeny {
+		t.Errorf("PermissionDecision: %q", out.HookSpecificOutput.PermissionDecision)
+	}
+	if out.HookSpecificOutput.PermissionDecisionReason != "blocked" {
+		t.Errorf("Reason: %q", out.HookSpecificOutput.PermissionDecisionReason)
+	}
 }

@@ -113,6 +113,18 @@ wardhook test --rule block-rm-recursive 'rm -fr ./important'
 - `--tool TOOL` のデフォルトは `Bash`。サポート対象は `Bash` / `Read` / `Write` / `Edit` / `NotebookEdit` / `Glob` / `WebFetch` / `WebSearch`。`Grep` は path と pattern の 2 値が必要なため非対応です。
 - `--rule` が 1 つだけ指定され、そのルールの tool が具体名なら自動的にその tool を使います。それ以外は `Bash` がデフォルトです。
 
+### 5. Codex (OpenAI) で使う
+
+Codex CLI の `pre-tool-use` フックから wardhook を呼ぶには `codex` サブコマンドを登録します。設定ファイルの場所やキー名は Codex の公式ドキュメントを参照してください（現状フォーマットが流動的なため）。
+
+```bash
+wardhook codex < codex-pre-tool-use.json
+```
+
+Codex は Claude Code と同じ `tool_name` (`"Bash"`, `"Read"`, ...) と `tool_input` (`{"command": "..."}`, `{"file_path": "..."}`, ...) を発火するため、1 つの `wardhook.yaml` を両方の CLI に共用できます。
+
+> wardhook は Codex の `permission_mode` に依存せず独自にルールを評価します。Codex が `bypassPermissions` モードで動作していても、wardhook の `deny` ルールはそのまま作動します。
+
 ## 設定
 
 wardhook は `wardhook.yaml` を読み込みます (`--config` で上書き可能)。

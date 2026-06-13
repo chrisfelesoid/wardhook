@@ -34,7 +34,7 @@ func TestProvider_InvocationStruct(t *testing.T) {
 
 // implementations is the canonical list of Provider implementations
 // whose ReadInvocation/WriteDecision are fully functional. Stubs whose
-// I/O methods panic (currently Codex and Gemini) are NOT included here —
+// I/O methods panic (currently Gemini only) are NOT included here —
 // they are covered by TestProvider_StubsHaveExpectedNames below.
 //
 // When a new Provider implementation lands, append it here so the
@@ -42,6 +42,7 @@ func TestProvider_InvocationStruct(t *testing.T) {
 func implementations() []provider.Provider {
 	return []provider.Provider{
 		provider.ClaudeProvider{},
+		provider.CodexProvider{},
 	}
 }
 
@@ -85,7 +86,6 @@ func TestProvider_StubsHaveExpectedNames(t *testing.T) {
 		p    provider.Provider
 		want string
 	}{
-		{provider.CodexProvider{}, "codex"},
 		{provider.GeminiProvider{}, "gemini"},
 	}
 	for _, c := range cases {

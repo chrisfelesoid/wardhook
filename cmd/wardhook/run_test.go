@@ -235,22 +235,29 @@ func TestRun_DispatchClaudeExplicit(t *testing.T) {
 	}
 }
 
-func TestRun_DispatchCodex_NotImplemented(t *testing.T) {
+func TestRun_DispatchCodex_AllowsByDefaultWithNoConfig(t *testing.T) {
 	t.Parallel()
-	stdin := `{}`
-	code, out, errStr := runOnce(t, []string{"wardhook", "codex"}, stdin)
+	stdin := `{
+		"session_id":"s","turn_id":"t","transcript_path":null,
+		"cwd":"/workspace","hook_event_name":"PreToolUse",
+		"model":"gpt-test","permission_mode":"default",
+		"tool_name":"Bash","tool_input":{"command":"ls"},
+		"tool_use_id":"u"
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "codex", "--config", "/no/such/file.yaml"}, stdin)
 	if code != 0 {
 		t.Fatalf("exit code: %d", code)
 	}
-	// The Codex provider panics, but runHook's recover() degrades the
-	// response. The recover path uses the same panicking provider to
-	// write the "ask" output, so the second panic propagates and the
-	// stdout may be empty. What we MUST guarantee is exit code 0 and
-	// that stderr captures the panic for the operator.
-	if !strings.Contains(errStr, "panic") {
-		t.Errorf("stderr should mention panic: %q", errStr)
+	var o hookOut
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
 	}
-	_ = out
+	if o.HookSpecificOutput.HookEventName != "PreToolUse" {
+		t.Errorf("hookEventName: %q", o.HookSpecificOutput.HookEventName)
+	}
+	if o.HookSpecificOutput.PermissionDecision != "allow" {
+		t.Errorf("decision: %q", o.HookSpecificOutput.PermissionDecision)
+	}
 }
 
 func TestRun_DispatchGemini_NotImplemented(t *testing.T) {

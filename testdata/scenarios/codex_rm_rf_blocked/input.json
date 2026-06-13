@@ -1,0 +1,12 @@
+{
+  "session_id": "sess-1",
+  "turn_id": "turn-1",
+  "transcript_path": null,
+  "cwd": "/workspace",
+  "hook_event_name": "PreToolUse",
+  "model": "gpt-test",
+  "permission_mode": "default",
+  "tool_name": "Bash",
+  "tool_input": { "command": "rm -fr ./important" },
+  "tool_use_id": "tool-1"
+}
