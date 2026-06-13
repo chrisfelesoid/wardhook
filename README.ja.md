@@ -125,6 +125,29 @@ Codex は Claude Code と同じ `tool_name` (`"Bash"`, `"Read"`, ...) と `tool_
 
 > wardhook は Codex の `permission_mode` に依存せず独自にルールを評価します。Codex が `bypassPermissions` モードで動作していても、wardhook の `deny` ルールはそのまま作動します。
 
+### 6. Cursor で使う
+
+Cursor の `preToolUse` フックから wardhook を呼ぶには `.cursor/hooks.json` に `wardhook cursor` を登録します。
+
+```json
+{
+  "version": 1,
+  "hooks": {
+    "preToolUse": [
+      { "command": "wardhook cursor", "failClosed": true }
+    ]
+  }
+}
+```
+
+`failClosed: true` の指定を推奨します。wardhook 自体が異常終了した場合でも、allow へフォールバックさせずブロックさせるためです。
+
+Cursor はシェル実行を `Shell` ツール名で発火しますが、wardhook は内部で `Bash` (Claude 語彙) に正規化するため、既存の `tool: Bash` ルールがそのまま適用されます。Cursor 固有のツール (`Delete`, `Task`, `MCP:*`) は元の名前で `tool:` に書くか、`tool: "*"` のクロスツールルールでまとめてマッチできます。
+
+> wardhook は Cursor 側の permission 状態に依存せず独自にルールを評価します。Cursor 側の承認フローに関わらず、wardhook の `deny` ルールは常に作動します。
+
+> wardhook は parse / config エラー時に `ask` をフェイルクローズドのフォールバックとして出力します。現状の Cursor は `permission: "ask"` を受け付けますが、将来仕様変更で拒否されるようになった場合、それらのエッジケースは Cursor 側のエラー挙動に委ねられます。
+
 ## 設定
 
 wardhook は `wardhook.yaml` を読み込みます (`--config` で上書き可能)。

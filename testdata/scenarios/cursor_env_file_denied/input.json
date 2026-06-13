@@ -1,0 +1,15 @@
+{
+  "conversation_id": "conv-2",
+  "generation_id": "gen-2",
+  "model": "cursor-default",
+  "hook_event_name": "preToolUse",
+  "cursor_version": "0.45.0",
+  "workspace_roots": ["/workspace"],
+  "user_email": "tester@example.com",
+  "transcript_path": null,
+  "tool_name": "Read",
+  "tool_input": { "file_path": "/workspace/.env" },
+  "tool_use_id": "tu-2",
+  "cwd": "/workspace",
+  "agent_message": "read env"
+}
