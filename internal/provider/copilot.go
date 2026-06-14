@@ -34,6 +34,12 @@ type copilotFileOpInput struct {
 	FilePathSnake string `json:"file_path"`
 }
 
+// copilotEditFilesInput captures Copilot's editFiles tool_input shape.
+// Each entry expands into one normalized Edit Invocation.
+type copilotEditFilesInput struct {
+	Files []string `json:"files"`
+}
+
 // Name returns "copilot".
 func (CopilotProvider) Name() string { return "copilot" }
 
@@ -57,6 +63,9 @@ func (CopilotProvider) ReadInvocations(r io.Reader) ([]*Invocation, error) {
 		return nil, uErr
 	}
 	claudeTool := normalizeCopilotToolName(in.ToolName)
+	if in.ToolName == "editFiles" {
+		return expandEditFiles(in, claudeTool, raw)
+	}
 	normalized, nErr := normalizeCopilotToolInput(in.ToolName, in.ToolInput)
 	if nErr != nil {
 		return nil, nErr
@@ -67,6 +76,45 @@ func (CopilotProvider) ReadInvocations(r io.Reader) ([]*Invocation, error) {
 		CWD:       in.CWD,
 		Raw:       raw,
 	}}, nil
+}
+
+// expandEditFiles fans out a Copilot editFiles call into one Invocation
+// per file_path. An empty files array yields a single Invocation with an
+// empty tool_input. In that case path-constrained rules (glob/regex) do
+// not fire; only path-unconstrained Edit rules would. This mirrors
+// Copilot-side no-op semantics: an empty edit batch is treated as
+// "harmless" by wardhook unless the user explicitly bans all Edit calls.
+func expandEditFiles(in copilotInput, claudeTool string, raw json.RawMessage) ([]*Invocation, error) {
+	var ef copilotEditFilesInput
+	if err := json.Unmarshal(in.ToolInput, &ef); err != nil {
+		return nil, err
+	}
+	if len(ef.Files) == 0 {
+		empty, mErr := json.Marshal(map[string]string{})
+		if mErr != nil {
+			return nil, mErr
+		}
+		return []*Invocation{{
+			ToolName:  claudeTool,
+			ToolInput: empty,
+			CWD:       in.CWD,
+			Raw:       raw,
+		}}, nil
+	}
+	invs := make([]*Invocation, 0, len(ef.Files))
+	for _, f := range ef.Files {
+		ti, mErr := json.Marshal(map[string]string{"file_path": f})
+		if mErr != nil {
+			return nil, mErr
+		}
+		invs = append(invs, &Invocation{
+			ToolName:  claudeTool,
+			ToolInput: ti,
+			CWD:       in.CWD,
+			Raw:       raw,
+		})
+	}
+	return invs, nil
 }
 
 // normalizeCopilotToolInput rewrites the tool_input payload from Copilot's

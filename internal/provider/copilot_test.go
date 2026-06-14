@@ -145,3 +145,107 @@ func TestCopilotProvider_ReadInvocations_CreateFile_FilePathSnake(t *testing.T) 
 		t.Errorf("file_path: got %v, want src/new.ts", ti["file_path"])
 	}
 }
+
+func TestCopilotProvider_ReadInvocations_EditFiles_Single(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "editFiles",
+		"tool_input": {"files": ["src/a.ts"]}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(invs))
+	}
+	if invs[0].ToolName != "Edit" {
+		t.Errorf("ToolName: got %q, want Edit", invs[0].ToolName)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "src/a.ts" {
+		t.Errorf("file_path: got %v, want src/a.ts", ti["file_path"])
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_EditFiles_Multi(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "editFiles",
+		"tool_input": {"files": ["src/a.ts", "src/b.ts", "src/c.ts"]}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 3 {
+		t.Fatalf("expected 3 invocations, got %d", len(invs))
+	}
+	wantPaths := []string{"src/a.ts", "src/b.ts", "src/c.ts"}
+	for i, inv := range invs {
+		if inv.ToolName != "Edit" {
+			t.Errorf("invs[%d].ToolName: got %q, want Edit", i, inv.ToolName)
+		}
+		if inv.CWD != "/workspace" {
+			t.Errorf("invs[%d].CWD: %q", i, inv.CWD)
+		}
+		var ti map[string]any
+		_ = json.Unmarshal(inv.ToolInput, &ti)
+		if ti["file_path"] != wantPaths[i] {
+			t.Errorf("invs[%d].file_path: got %v, want %q", i, ti["file_path"], wantPaths[i])
+		}
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_EditFiles_Empty(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "editFiles",
+		"tool_input": {"files": []}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 {
+		t.Fatalf("expected 1 invocation (empty editFiles), got %d", len(invs))
+	}
+	if invs[0].ToolName != "Edit" {
+		t.Errorf("ToolName: got %q, want Edit", invs[0].ToolName)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if _, ok := ti["file_path"]; ok {
+		t.Errorf("file_path should be absent for empty files, got %v", ti)
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_PreservesRawAcrossExpansion(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "editFiles",
+		"tool_input": {"files": ["a", "b"]}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 2 {
+		t.Fatalf("expected 2 invocations, got %d", len(invs))
+	}
+	if string(invs[0].Raw) != string(invs[1].Raw) {
+		t.Errorf("Raw should be shared across expanded invocations")
+	}
+	if len(invs[0].Raw) == 0 {
+		t.Errorf("Raw should not be empty")
+	}
+}
