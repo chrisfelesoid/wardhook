@@ -26,6 +26,7 @@ const (
 	codexSubcommand         = "codex"
 	copilotSubcommand       = "copilot"
 	cursorSubcommand        = "cursor"
+	antigravitySubcommand   = "antigravity"
 	geminiSubcommand        = "gemini"
 	testSubcommand          = "test"
 	exitTestArgError        = 2
@@ -46,6 +47,8 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) int {
 			return runHook(provider.CopilotProvider{}, stdin, stdout, stderr, args[2:])
 		case cursorSubcommand:
 			return runHook(provider.CursorProvider{}, stdin, stdout, stderr, args[2:])
+		case antigravitySubcommand:
+			return runHook(provider.AntigravityProvider{}, stdin, stdout, stderr, args[2:])
 		case geminiSubcommand:
 			return runHook(provider.GeminiProvider{}, stdin, stdout, stderr, args[2:])
 		case validateSubcommand:

@@ -536,3 +536,28 @@ func TestRun_DispatchCopilot_EditFilesMultiPath_AllSafe_Allow(t *testing.T) {
 		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
 	}
 }
+
+func TestRun_DispatchAntigravity_AllowsByDefaultWithNoConfig(t *testing.T) {
+	t.Parallel()
+	stdin := `{
+		"toolCall": {"name":"run_command","args":{"CommandLine":"ls"}},
+		"workspacePaths": ["/workspace"],
+		"stepIdx": 1,
+		"conversationId": "c-1",
+		"transcriptPath": null,
+		"artifactDirectoryPath": null
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "antigravity", "--config", "/no/such/file.yaml"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o struct {
+		Decision string `json:"decision"`
+	}
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
+	}
+	if o.Decision != "allow" {
+		t.Errorf("decision: %q", o.Decision)
+	}
+}
