@@ -7,6 +7,10 @@ import (
 	"github.com/chrisfelesoid/wardhook/internal/hook"
 )
 
+const (
+	antigravityKeyFilePathSnake = "file_path"
+)
+
 // AntigravityProvider implements Provider for Google Antigravity's
 // PreToolUse hook. Antigravity emits snake_case tool names
 // ("run_command", "view_file", "edit_file", "write_file", ...) with
@@ -34,6 +38,17 @@ type antigravityToolCall struct {
 // antigravityRunCommandArgs is the args shape for the run_command tool.
 type antigravityRunCommandArgs struct {
 	CommandLine string `json:"CommandLine"`
+}
+
+// antigravityFileArgs captures the path field for view_file / edit_file /
+// write_file across three plausible key spellings. The public docs use
+// PascalCase but do not pin down which of Path / FilePath wins, so we try
+// snake_case file_path → PascalCase FilePath → PascalCase Path in that
+// order. The first non-empty value is normalized to {"file_path": ...}.
+type antigravityFileArgs struct {
+	FilePathSnake string `json:"file_path"`
+	FilePath      string `json:"FilePath"`
+	Path          string `json:"Path"`
 }
 
 // antigravityDecision is the wire shape Antigravity expects on stdout.
@@ -111,21 +126,38 @@ func normalizeAntigravityToolName(s string) string {
 
 // normalizeAntigravityToolArgs rewrites the args payload from
 // Antigravity's shape to Claude's where they differ. run_command
-// extracts CommandLine into {"command": ...}; other tools are handled
-// in a later task. Unknown tools pass through unchanged.
+// extracts CommandLine into {"command": ...}; view_file / edit_file /
+// write_file try file_path → FilePath → Path in priority order and
+// normalize to {"file_path": ...}. Unknown tools pass through unchanged.
 func normalizeAntigravityToolArgs(toolName string, in json.RawMessage) (json.RawMessage, error) {
 	switch toolName {
 	case "run_command":
 		var rc antigravityRunCommandArgs
 		if err := json.Unmarshal(in, &rc); err != nil {
-			// Malformed args: pass through. BashParser will see no
-			// command and the rule engine treats it as no-input.
 			return in, nil //nolint:nilerr // intentional: swallow malformed input and let downstream parser surface it
 		}
 		if rc.CommandLine == "" {
 			return in, nil
 		}
 		return json.Marshal(map[string]string{"command": rc.CommandLine})
+
+	case "view_file", "edit_file", "write_file":
+		var fa antigravityFileArgs
+		if err := json.Unmarshal(in, &fa); err != nil {
+			return in, nil //nolint:nilerr // intentional: malformed args pass through
+		}
+		path := fa.FilePathSnake
+		if path == "" {
+			path = fa.FilePath
+		}
+		if path == "" {
+			path = fa.Path
+		}
+		if path == "" {
+			return in, nil
+		}
+		return json.Marshal(map[string]string{antigravityKeyFilePathSnake: path})
+
 	default:
 		return in, nil
 	}

@@ -160,3 +160,89 @@ func TestAntigravityProvider_ReadInvocations_InvalidJSON(t *testing.T) {
 		t.Errorf("expected error for invalid JSON")
 	}
 }
+
+func TestAntigravityProvider_ReadInvocations_ViewFile_FilePathSnake(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"view_file","args":{"file_path":"src/main.ts"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Read" {
+		t.Fatalf("invs: %v", invs)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "src/main.ts" {
+		t.Errorf("file_path: %v", ti["file_path"])
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_ViewFile_FilePathPascal(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"view_file","args":{"FilePath":"src/main.ts"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Read" {
+		t.Fatalf("invs: %v", invs)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "src/main.ts" {
+		t.Errorf("file_path: %v", ti["file_path"])
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_ViewFile_Path(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"view_file","args":{"Path":"src/main.ts"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Read" {
+		t.Fatalf("invs: %v", invs)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "src/main.ts" {
+		t.Errorf("file_path: %v", ti["file_path"])
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_EditFile_PriorityOrder(t *testing.T) {
+	t.Parallel()
+	// All three keys present: file_path (snake) wins, then FilePath, then Path.
+	raw := `{"toolCall":{"name":"edit_file","args":{"file_path":"a","FilePath":"b","Path":"c"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Edit" {
+		t.Fatalf("invs: %v", invs)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "a" {
+		t.Errorf("priority order: got file_path=%v, want a (snake_case wins)", ti["file_path"])
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_WriteFile_FilePathPascal(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"write_file","args":{"FilePath":"out.txt"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Write" {
+		t.Fatalf("invs: %v", invs)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "out.txt" {
+		t.Errorf("file_path: %v", ti["file_path"])
+	}
+}
