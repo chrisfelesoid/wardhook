@@ -1,0 +1,10 @@
+{
+  "timestamp": "2026-06-14T00:00:00Z",
+  "session_id": "sess-2",
+  "hook_event_name": "PreToolUse",
+  "transcript_path": null,
+  "cwd": "/workspace",
+  "tool_name": "editFiles",
+  "tool_input": { "files": ["src/main.ts", "/workspace/.env", "src/lib.ts"] },
+  "tool_use_id": "tool-2"
+}
