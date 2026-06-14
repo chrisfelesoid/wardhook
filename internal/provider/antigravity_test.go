@@ -246,3 +246,111 @@ func TestAntigravityProvider_ReadInvocations_WriteFile_FilePathPascal(t *testing
 		t.Errorf("file_path: %v", ti["file_path"])
 	}
 }
+
+func TestAntigravityProvider_ReadInvocations_ListDir_PassThrough(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"list_dir","args":{"Path":"/w"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "list_dir" {
+		t.Errorf("ToolName should pass through unchanged, got %v", invs)
+	}
+	// args should be unchanged
+	if !strings.Contains(string(invs[0].ToolInput), `"Path"`) {
+		t.Errorf("args should pass through unchanged, got %s", invs[0].ToolInput)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_MCPTool_PassThrough(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"myserver/foo","args":{"x":1}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "myserver/foo" {
+		t.Errorf("MCP tool name should pass through, got %v", invs)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_UnknownTool_PassThrough(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"future_tool","args":{}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "future_tool" {
+		t.Errorf("unknown tool name should pass through, got %v", invs)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_WorkspacePaths_First(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"run_command","args":{"CommandLine":"ls"}},"workspacePaths":["/a","/b"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if invs[0].CWD != "/a" {
+		t.Errorf("CWD: got %q, want /a (first workspace)", invs[0].CWD)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_WorkspacePaths_Empty(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"run_command","args":{"CommandLine":"ls"}},"workspacePaths":[]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if invs[0].CWD != "" {
+		t.Errorf("CWD: got %q, want empty", invs[0].CWD)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_WorkspacePaths_Missing(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"run_command","args":{"CommandLine":"ls"}}}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if invs[0].CWD != "" {
+		t.Errorf("CWD: got %q, want empty when workspacePaths missing", invs[0].CWD)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_IgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"toolCall": {"name":"run_command","args":{"CommandLine":"ls"}},
+		"workspacePaths": ["/w"],
+		"stepIdx": 42,
+		"conversationId": "c-1",
+		"transcriptPath": "/tmp/t.log",
+		"artifactDirectoryPath": "/tmp/art",
+		"futureField": "should-be-ignored"
+	}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Bash" {
+		t.Errorf("invs: %v", invs)
+	}
+}
+
+func TestAntigravityProvider_ReadInvocations_PreservesRaw(t *testing.T) {
+	t.Parallel()
+	raw := `{"toolCall":{"name":"run_command","args":{"CommandLine":"ls"}},"workspacePaths":["/w"]}`
+	invs, err := (provider.AntigravityProvider{}).ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if string(invs[0].Raw) != raw {
+		t.Errorf("Raw should preserve original JSON verbatim:\n got: %s\nwant: %s", invs[0].Raw, raw)
+	}
+}
