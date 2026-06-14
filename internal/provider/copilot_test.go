@@ -249,3 +249,110 @@ func TestCopilotProvider_ReadInvocations_PreservesRawAcrossExpansion(t *testing.
 		t.Errorf("Raw should not be empty")
 	}
 }
+
+func TestCopilotProvider_ReadInvocations_DeleteFile_PassThrough(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "deleteFile",
+		"tool_input": {"filePath": "src/old.ts"}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "deleteFile" {
+		t.Errorf("ToolName: %v", invs)
+	}
+	// ToolInput should be the original {"filePath": ...} since we do not
+	// rewrite deleteFile shapes.
+	if !strings.Contains(string(invs[0].ToolInput), "filePath") {
+		t.Errorf("ToolInput should be passed through: %s", invs[0].ToolInput)
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_PushToGitHub_PassThrough(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "pushToGitHub",
+		"tool_input": {"branch": "main"}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "pushToGitHub" {
+		t.Errorf("ToolName: %v", invs)
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_UnknownTool_PassThrough(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "futureCopilotTool",
+		"tool_input": {}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "futureCopilotTool" {
+		t.Errorf("ToolName: %v", invs)
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_InvalidJSON(t *testing.T) {
+	t.Parallel()
+	p := provider.CopilotProvider{}
+	_, err := p.ReadInvocations(strings.NewReader("{not json"))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_IgnoresUnknownFields(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"timestamp": "2026-06-14T00:00:00Z",
+		"session_id": "s",
+		"hook_event_name": "PreToolUse",
+		"transcript_path": null,
+		"cwd": "/workspace",
+		"tool_name": "runTerminalCommand",
+		"tool_input": {"command": "ls"},
+		"tool_use_id": "tu",
+		"future_copilot_field": 42
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 || invs[0].ToolName != "Bash" {
+		t.Errorf("ToolName: %v", invs)
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_PreservesCWD(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/some/where",
+		"tool_name": "editFiles",
+		"tool_input": {"files": ["a", "b"]}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	for i, inv := range invs {
+		if inv.CWD != "/some/where" {
+			t.Errorf("invs[%d].CWD: %q", i, inv.CWD)
+		}
+	}
+}
