@@ -299,18 +299,6 @@ func TestRun_DispatchCodex_AllowsByDefaultWithNoConfig(t *testing.T) {
 	}
 }
 
-func TestRun_DispatchGemini_NotImplemented(t *testing.T) {
-	t.Parallel()
-	stdin := `{}`
-	code, _, errStr := runOnce(t, []string{"wardhook", "gemini"}, stdin)
-	if code != 0 {
-		t.Fatalf("exit code: %d", code)
-	}
-	if !strings.Contains(errStr, "panic") {
-		t.Errorf("stderr should mention panic: %q", errStr)
-	}
-}
-
 func TestRun_DispatchCursor_AllowsByDefaultWithNoConfig(t *testing.T) {
 	t.Parallel()
 	stdin := `{

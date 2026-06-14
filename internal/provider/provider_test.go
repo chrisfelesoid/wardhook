@@ -33,9 +33,7 @@ func TestProvider_InvocationStruct(t *testing.T) {
 }
 
 // implementations is the canonical list of Provider implementations
-// whose ReadInvocations/WriteDecision are fully functional. Stubs whose
-// I/O methods panic (currently Gemini only) are NOT included here —
-// they are covered by TestProvider_StubsHaveExpectedNames below.
+// whose ReadInvocations/WriteDecision are fully functional.
 //
 // When a new Provider implementation lands, append it here so the
 // conformance checks below cover it automatically.
@@ -77,23 +75,6 @@ func TestProvider_WriteDecision_AllValues(t *testing.T) {
 					t.Errorf("output is not valid JSON: %s", buf.String())
 				}
 			})
-		}
-	}
-}
-
-// TestProvider_StubsHaveExpectedNames covers Codex/Gemini stubs at the
-// Name level only, since their ReadInvocations/WriteDecision panic.
-func TestProvider_StubsHaveExpectedNames(t *testing.T) {
-	t.Parallel()
-	cases := []struct {
-		p    provider.Provider
-		want string
-	}{
-		{provider.GeminiProvider{}, "gemini"},
-	}
-	for _, c := range cases {
-		if got := c.p.Name(); got != c.want {
-			t.Errorf("%T.Name(): got %q, want %q", c.p, got, c.want)
 		}
 	}
 }
