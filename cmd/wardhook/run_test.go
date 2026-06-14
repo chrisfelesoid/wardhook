@@ -449,3 +449,90 @@ func TestRun_RecursiveEval_BrokenInnerAsks(t *testing.T) {
 		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
 	}
 }
+
+func TestRun_DispatchCopilot_RespondsDenyOnMatchingRule(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm-recursive",
+		"    tool: Bash",
+		"    match: {command: rm, flags_all: [r, f]}",
+		"    action: deny",
+	})
+	stdin := `{
+		"cwd":"/workspace",
+		"tool_name":"runTerminalCommand",
+		"tool_input":{"command":"rm -fr ./important"}
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "deny" {
+		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+	if !strings.Contains(o.HookSpecificOutput.PermissionDecisionReason, "block-rm-recursive") {
+		t.Errorf("reason should mention rule: %q", o.HookSpecificOutput.PermissionDecisionReason)
+	}
+}
+
+func TestRun_DispatchCopilot_EditFilesMultiPath_AggregatesDeny(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-sensitive-files",
+		`    tool: "*"`,
+		"    match:",
+		"      glob:",
+		"        mode: any",
+		`        patterns: ["**/.env"]`,
+		"    action: deny",
+	})
+	stdin := `{
+		"cwd":"/workspace",
+		"tool_name":"editFiles",
+		"tool_input":{"files":["src/main.ts","/workspace/.env","src/lib.ts"]}
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "deny" {
+		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+}
+
+func TestRun_DispatchCopilot_EditFilesMultiPath_AllSafe_Allow(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-sensitive-files",
+		`    tool: "*"`,
+		"    match:",
+		"      glob:",
+		"        mode: any",
+		`        patterns: ["**/.env"]`,
+		"    action: deny",
+	})
+	stdin := `{
+		"cwd":"/workspace",
+		"tool_name":"editFiles",
+		"tool_input":{"files":["src/main.ts","src/lib.ts"]}
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "allow" {
+		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+}
