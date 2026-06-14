@@ -373,6 +373,31 @@ func TestRun_DispatchCursor_DeniesShellRmRf(t *testing.T) {
 	}
 }
 
+func TestRun_DispatchCopilot_AllowsByDefaultWithNoConfig(t *testing.T) {
+	t.Parallel()
+	stdin := `{
+		"timestamp":"2026-06-14T00:00:00Z","session_id":"s",
+		"hook_event_name":"PreToolUse","transcript_path":null,
+		"cwd":"/workspace",
+		"tool_name":"runTerminalCommand","tool_input":{"command":"ls"},
+		"tool_use_id":"u"
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", "/no/such/file.yaml"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
+	}
+	if o.HookSpecificOutput.HookEventName != "PreToolUse" {
+		t.Errorf("hookEventName: %q", o.HookSpecificOutput.HookEventName)
+	}
+	if o.HookSpecificOutput.PermissionDecision != "allow" {
+		t.Errorf("decision: %q", o.HookSpecificOutput.PermissionDecision)
+	}
+}
+
 func TestRun_RecursiveEval_BashDashCDeny(t *testing.T) {
 	t.Parallel()
 	cfg := writeConfig(t, []string{
