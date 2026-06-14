@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/chrisfelesoid/wardhook/internal/hook"
@@ -17,6 +18,14 @@ import (
 // {"decision": ..., "reason": ...} JSON, not Claude's hookSpecificOutput.
 type AntigravityProvider struct{}
 
+// antigravityDecision is the wire shape Antigravity expects on stdout.
+// NOT Claude's hookSpecificOutput — Antigravity uses a flat top-level
+// {"decision": ..., "reason": ...} object. Reason is omitted when empty.
+type antigravityDecision struct {
+	Decision hook.Decision `json:"decision"`
+	Reason   string        `json:"reason,omitempty"`
+}
+
 // Name returns "antigravity".
 func (AntigravityProvider) Name() string { return "antigravity" }
 
@@ -26,7 +35,14 @@ func (AntigravityProvider) ReadInvocations(_ io.Reader) ([]*Invocation, error) {
 	return nil, nil
 }
 
-// WriteDecision is filled in by a later task.
-func (AntigravityProvider) WriteDecision(_ io.Writer, _ hook.Decision, _ string) error {
-	return nil
+// WriteDecision emits Antigravity's PreToolUse response JSON. The
+// hook.Decision string values ("allow"/"deny"/"ask") match Antigravity's
+// decision vocabulary verbatim, so no per-value mapping is needed.
+func (AntigravityProvider) WriteDecision(w io.Writer, dec hook.Decision, reason string) error {
+	enc := json.NewEncoder(w)
+	enc.SetEscapeHTML(false)
+	return enc.Encode(antigravityDecision{
+		Decision: dec,
+		Reason:   reason,
+	})
 }
