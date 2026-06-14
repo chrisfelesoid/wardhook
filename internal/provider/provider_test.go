@@ -44,6 +44,7 @@ func implementations() []provider.Provider {
 		provider.ClaudeProvider{},
 		provider.CodexProvider{},
 		provider.CursorProvider{},
+		provider.CopilotProvider{},
 	}
 }
 
