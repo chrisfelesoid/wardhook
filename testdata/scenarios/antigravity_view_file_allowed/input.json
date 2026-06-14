@@ -1,0 +1,7 @@
+{
+  "toolCall": {
+    "name": "view_file",
+    "args": { "Path": "src/main.ts" }
+  },
+  "workspacePaths": ["/workspace"]
+}

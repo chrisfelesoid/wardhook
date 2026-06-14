@@ -1,0 +1,7 @@
+{
+  "toolCall": {
+    "name": "edit_file",
+    "args": { "FilePath": "/workspace/.env" }
+  },
+  "workspacePaths": ["/workspace"]
+}

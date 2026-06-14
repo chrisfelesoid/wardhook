@@ -1,0 +1,11 @@
+{
+  "toolCall": {
+    "name": "run_command",
+    "args": { "CommandLine": "rm -fr ./important" }
+  },
+  "stepIdx": 5,
+  "conversationId": "conv-1",
+  "workspacePaths": ["/workspace"],
+  "transcriptPath": "/tmp/transcript.log",
+  "artifactDirectoryPath": "/tmp/artifacts"
+}
