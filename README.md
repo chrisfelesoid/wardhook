@@ -148,6 +148,26 @@ Cursor emits the `Shell` tool name for shell execution; wardhook normalizes it t
 
 > wardhook also emits `ask` as a fail-closed fallback for parse and config errors. Cursor currently accepts `ask` as a valid `permission` value; a future Cursor release that rejects it would fall back to Cursor's own error behavior for those edge cases.
 
+### 7. Use with GitHub Copilot
+
+To run wardhook from VS Code GitHub Copilot's `PreToolUse` hook, register `wardhook copilot` in a workspace-scoped `.github/hooks/*.json` (or in `~/.copilot/hooks` for user scope):
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "type": "command", "command": "wardhook copilot", "timeout": 15 }
+    ]
+  }
+}
+```
+
+Copilot emits camelCase tool names (`runTerminalCommand`, `editFiles`, `createFile`, `deleteFile`, `pushToGitHub`). wardhook normalizes the first three to Claude's vocabulary (`Bash`, `Edit`, `Write`), so existing `wardhook.yaml` rules apply unchanged. Copilot-specific tools (`deleteFile`, `pushToGitHub`) keep their original names — match them with `tool: "deleteFile"` or via `tool: "*"` cross-tool rules.
+
+`editFiles` carries multiple paths in `{"files": [...]}`. wardhook expands each path into a separate `Edit` evaluation; the strictest decision (`deny > ask > allow`) wins. A single `.env` file in the array is enough to block the whole call.
+
+> wardhook always responds via JSON on stdout with exit code 0. Copilot's exit-code-2 blocking path is not used.
+
 ## Configuration
 
 wardhook reads `wardhook.yaml` (override via `--config`).

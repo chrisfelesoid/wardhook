@@ -26,10 +26,10 @@ type codexInput struct {
 // Name returns "codex".
 func (CodexProvider) Name() string { return "codex" }
 
-// ReadInvocation decodes Codex's pre-tool-use.command.input JSON from r.
-// Unknown fields are tolerated for forward compatibility with future
-// Codex schema additions.
-func (CodexProvider) ReadInvocation(r io.Reader) (*Invocation, error) {
+// ReadInvocations decodes Codex's pre-tool-use.command.input JSON from r
+// and returns it as a single-element Invocation slice. Unknown fields are
+// tolerated for forward compatibility with future Codex schema additions.
+func (CodexProvider) ReadInvocations(r io.Reader) ([]*Invocation, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -38,12 +38,12 @@ func (CodexProvider) ReadInvocation(r io.Reader) (*Invocation, error) {
 	if uErr := json.Unmarshal(raw, &in); uErr != nil {
 		return nil, uErr
 	}
-	return &Invocation{
+	return []*Invocation{{
 		ToolName:  in.ToolName,
 		ToolInput: in.ToolInput,
 		CWD:       in.CWD,
 		Raw:       raw,
-	}, nil
+	}}, nil
 }
 
 // WriteDecision emits a Codex pre-tool-use.command.output JSON. Codex's

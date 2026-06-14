@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/chrisfelesoid/wardhook/internal/hook"
 )
 
 type hookOut struct {
@@ -219,6 +221,43 @@ func TestRun_Validate_MissingFile(t *testing.T) {
 	}
 }
 
+func TestStricter_DenyOverAsk(t *testing.T) {
+	t.Parallel()
+	if !stricter(hook.DecisionDeny, hook.DecisionAsk) {
+		t.Errorf("deny should be stricter than ask")
+	}
+}
+
+func TestStricter_AskOverAllow(t *testing.T) {
+	t.Parallel()
+	if !stricter(hook.DecisionAsk, hook.DecisionAllow) {
+		t.Errorf("ask should be stricter than allow")
+	}
+}
+
+func TestStricter_DenyOverAllow(t *testing.T) {
+	t.Parallel()
+	if !stricter(hook.DecisionDeny, hook.DecisionAllow) {
+		t.Errorf("deny should be stricter than allow")
+	}
+}
+
+func TestStricter_NotReflexive(t *testing.T) {
+	t.Parallel()
+	for _, d := range []hook.Decision{hook.DecisionAllow, hook.DecisionAsk, hook.DecisionDeny} {
+		if stricter(d, d) {
+			t.Errorf("decision %q should not be strictly stronger than itself", d)
+		}
+	}
+}
+
+func TestStricter_AllowNotStricterThanAsk(t *testing.T) {
+	t.Parallel()
+	if stricter(hook.DecisionAllow, hook.DecisionAsk) {
+		t.Errorf("allow should not be stricter than ask")
+	}
+}
+
 func TestRun_DispatchClaudeExplicit(t *testing.T) {
 	t.Parallel()
 	stdin := `{"session_id":"s","cwd":"/workspace","tool_name":"Bash","tool_input":{"command":"ls"}}`
@@ -334,6 +373,31 @@ func TestRun_DispatchCursor_DeniesShellRmRf(t *testing.T) {
 	}
 }
 
+func TestRun_DispatchCopilot_AllowsByDefaultWithNoConfig(t *testing.T) {
+	t.Parallel()
+	stdin := `{
+		"timestamp":"2026-06-14T00:00:00Z","session_id":"s",
+		"hook_event_name":"PreToolUse","transcript_path":null,
+		"cwd":"/workspace",
+		"tool_name":"runTerminalCommand","tool_input":{"command":"ls"},
+		"tool_use_id":"u"
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", "/no/such/file.yaml"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
+	}
+	if o.HookSpecificOutput.HookEventName != "PreToolUse" {
+		t.Errorf("hookEventName: %q", o.HookSpecificOutput.HookEventName)
+	}
+	if o.HookSpecificOutput.PermissionDecision != "allow" {
+		t.Errorf("decision: %q", o.HookSpecificOutput.PermissionDecision)
+	}
+}
+
 func TestRun_RecursiveEval_BashDashCDeny(t *testing.T) {
 	t.Parallel()
 	cfg := writeConfig(t, []string{
@@ -382,6 +446,93 @@ func TestRun_RecursiveEval_BrokenInnerAsks(t *testing.T) {
 	var o hookOut
 	_ = json.Unmarshal([]byte(out), &o)
 	if o.HookSpecificOutput.PermissionDecision != "ask" {
+		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+}
+
+func TestRun_DispatchCopilot_RespondsDenyOnMatchingRule(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm-recursive",
+		"    tool: Bash",
+		"    match: {command: rm, flags_all: [r, f]}",
+		"    action: deny",
+	})
+	stdin := `{
+		"cwd":"/workspace",
+		"tool_name":"runTerminalCommand",
+		"tool_input":{"command":"rm -fr ./important"}
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "deny" {
+		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+	if !strings.Contains(o.HookSpecificOutput.PermissionDecisionReason, "block-rm-recursive") {
+		t.Errorf("reason should mention rule: %q", o.HookSpecificOutput.PermissionDecisionReason)
+	}
+}
+
+func TestRun_DispatchCopilot_EditFilesMultiPath_AggregatesDeny(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-sensitive-files",
+		`    tool: "*"`,
+		"    match:",
+		"      glob:",
+		"        mode: any",
+		`        patterns: ["**/.env"]`,
+		"    action: deny",
+	})
+	stdin := `{
+		"cwd":"/workspace",
+		"tool_name":"editFiles",
+		"tool_input":{"files":["src/main.ts","/workspace/.env","src/lib.ts"]}
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "deny" {
+		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+}
+
+func TestRun_DispatchCopilot_EditFilesMultiPath_AllSafe_Allow(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-sensitive-files",
+		`    tool: "*"`,
+		"    match:",
+		"      glob:",
+		"        mode: any",
+		`        patterns: ["**/.env"]`,
+		"    action: deny",
+	})
+	stdin := `{
+		"cwd":"/workspace",
+		"tool_name":"editFiles",
+		"tool_input":{"files":["src/main.ts","src/lib.ts"]}
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "copilot", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "allow" {
 		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
 	}
 }

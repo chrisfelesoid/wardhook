@@ -36,11 +36,12 @@ type cursorOutput struct {
 // Name returns "cursor".
 func (CursorProvider) Name() string { return "cursor" }
 
-// ReadInvocation decodes Cursor's preToolUse JSON from r. Unknown
-// fields are tolerated for forward compatibility with future Cursor
-// schema additions. tool_name "Shell" is normalized to "Bash" so the
-// rule engine sees a single, Claude-aligned vocabulary.
-func (CursorProvider) ReadInvocation(r io.Reader) (*Invocation, error) {
+// ReadInvocations decodes Cursor's preToolUse JSON from r and returns it
+// as a single-element Invocation slice. Unknown fields are tolerated for
+// forward compatibility with future Cursor schema additions. tool_name
+// "Shell" is normalized to "Bash" so the rule engine sees a single,
+// Claude-aligned vocabulary.
+func (CursorProvider) ReadInvocations(r io.Reader) ([]*Invocation, error) {
 	raw, err := io.ReadAll(r)
 	if err != nil {
 		return nil, err
@@ -49,12 +50,12 @@ func (CursorProvider) ReadInvocation(r io.Reader) (*Invocation, error) {
 	if uErr := json.Unmarshal(raw, &in); uErr != nil {
 		return nil, uErr
 	}
-	return &Invocation{
+	return []*Invocation{{
 		ToolName:  normalizeCursorToolName(in.ToolName),
 		ToolInput: in.ToolInput,
 		CWD:       in.CWD,
 		Raw:       raw,
-	}, nil
+	}}, nil
 }
 
 // WriteDecision emits Cursor's preToolUse response JSON. The reason

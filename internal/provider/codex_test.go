@@ -30,13 +30,17 @@ func TestCodexProvider_Name(t *testing.T) {
 	}
 }
 
-func TestCodexProvider_ReadInvocation_PreservesFields(t *testing.T) {
+func TestCodexProvider_ReadInvocations_PreservesFields(t *testing.T) {
 	t.Parallel()
 	p := provider.CodexProvider{}
-	inv, err := p.ReadInvocation(strings.NewReader(codexSampleInput))
+	invs, err := p.ReadInvocations(strings.NewReader(codexSampleInput))
 	if err != nil {
-		t.Fatalf("ReadInvocation: %v", err)
+		t.Fatalf("ReadInvocations: %v", err)
 	}
+	if len(invs) != 1 {
+		t.Fatalf("expected 1, got %d", len(invs))
+	}
+	inv := invs[0]
 	if inv.ToolName != "Bash" {
 		t.Errorf("ToolName: %q", inv.ToolName)
 	}
@@ -55,16 +59,16 @@ func TestCodexProvider_ReadInvocation_PreservesFields(t *testing.T) {
 	}
 }
 
-func TestCodexProvider_ReadInvocation_InvalidJSON(t *testing.T) {
+func TestCodexProvider_ReadInvocations_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	p := provider.CodexProvider{}
-	_, err := p.ReadInvocation(strings.NewReader("{not json"))
+	_, err := p.ReadInvocations(strings.NewReader("{not json"))
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestCodexProvider_ReadInvocation_IgnoresUnknownFields(t *testing.T) {
+func TestCodexProvider_ReadInvocations_IgnoresUnknownFields(t *testing.T) {
 	t.Parallel()
 	raw := `{
 		"session_id": "s",
@@ -75,12 +79,15 @@ func TestCodexProvider_ReadInvocation_IgnoresUnknownFields(t *testing.T) {
 		"another_unknown": {"nested": 1}
 	}`
 	p := provider.CodexProvider{}
-	inv, err := p.ReadInvocation(strings.NewReader(raw))
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
 	if err != nil {
-		t.Fatalf("ReadInvocation: %v", err)
+		t.Fatalf("ReadInvocations: %v", err)
 	}
-	if inv.ToolName != "Bash" {
-		t.Errorf("ToolName: %q", inv.ToolName)
+	if len(invs) != 1 {
+		t.Fatalf("expected 1, got %d", len(invs))
+	}
+	if invs[0].ToolName != "Bash" {
+		t.Errorf("ToolName: %q", invs[0].ToolName)
 	}
 }
 

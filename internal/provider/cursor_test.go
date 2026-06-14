@@ -33,13 +33,17 @@ func TestCursorProvider_Name(t *testing.T) {
 	}
 }
 
-func TestCursorProvider_ReadInvocation_PreservesFields(t *testing.T) {
+func TestCursorProvider_ReadInvocations_PreservesFields(t *testing.T) {
 	t.Parallel()
 	p := provider.CursorProvider{}
-	inv, err := p.ReadInvocation(strings.NewReader(cursorSampleInput))
+	invs, err := p.ReadInvocations(strings.NewReader(cursorSampleInput))
 	if err != nil {
-		t.Fatalf("ReadInvocation: %v", err)
+		t.Fatalf("ReadInvocations: %v", err)
 	}
+	if len(invs) != 1 {
+		t.Fatalf("expected 1, got %d", len(invs))
+	}
+	inv := invs[0]
 	if inv.CWD != "/workspace" {
 		t.Errorf("CWD: %q", inv.CWD)
 	}
@@ -55,19 +59,22 @@ func TestCursorProvider_ReadInvocation_PreservesFields(t *testing.T) {
 	}
 }
 
-func TestCursorProvider_ReadInvocation_NormalizesShellToBash(t *testing.T) {
+func TestCursorProvider_ReadInvocations_NormalizesShellToBash(t *testing.T) {
 	t.Parallel()
 	p := provider.CursorProvider{}
-	inv, err := p.ReadInvocation(strings.NewReader(cursorSampleInput))
+	invs, err := p.ReadInvocations(strings.NewReader(cursorSampleInput))
 	if err != nil {
-		t.Fatalf("ReadInvocation: %v", err)
+		t.Fatalf("ReadInvocations: %v", err)
 	}
-	if inv.ToolName != "Bash" {
-		t.Errorf("ToolName should be normalized to Bash, got %q", inv.ToolName)
+	if len(invs) != 1 {
+		t.Fatalf("expected 1, got %d", len(invs))
+	}
+	if invs[0].ToolName != "Bash" {
+		t.Errorf("ToolName should be normalized to Bash, got %q", invs[0].ToolName)
 	}
 }
 
-func TestCursorProvider_ReadInvocation_PreservesNonShellToolName(t *testing.T) {
+func TestCursorProvider_ReadInvocations_PreservesNonShellToolName(t *testing.T) {
 	t.Parallel()
 	cases := []string{"Read", "Write", "Grep", "Delete", "Task", "MCP:custom-tool"}
 	for _, name := range cases {
@@ -75,27 +82,27 @@ func TestCursorProvider_ReadInvocation_PreservesNonShellToolName(t *testing.T) {
 			t.Parallel()
 			raw := `{"cwd":"/w","tool_name":"` + name + `","tool_input":{}}`
 			p := provider.CursorProvider{}
-			inv, err := p.ReadInvocation(strings.NewReader(raw))
+			invs, err := p.ReadInvocations(strings.NewReader(raw))
 			if err != nil {
-				t.Fatalf("ReadInvocation: %v", err)
+				t.Fatalf("ReadInvocations: %v", err)
 			}
-			if inv.ToolName != name {
-				t.Errorf("ToolName: got %q, want %q", inv.ToolName, name)
+			if len(invs) != 1 || invs[0].ToolName != name {
+				t.Errorf("ToolName: got %v, want %q", invs, name)
 			}
 		})
 	}
 }
 
-func TestCursorProvider_ReadInvocation_InvalidJSON(t *testing.T) {
+func TestCursorProvider_ReadInvocations_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	p := provider.CursorProvider{}
-	_, err := p.ReadInvocation(strings.NewReader("{not json"))
+	_, err := p.ReadInvocations(strings.NewReader("{not json"))
 	if err == nil {
 		t.Fatal("expected error")
 	}
 }
 
-func TestCursorProvider_ReadInvocation_IgnoresUnknownFields(t *testing.T) {
+func TestCursorProvider_ReadInvocations_IgnoresUnknownFields(t *testing.T) {
 	t.Parallel()
 	raw := `{
 		"cwd": "/workspace",
@@ -105,12 +112,12 @@ func TestCursorProvider_ReadInvocation_IgnoresUnknownFields(t *testing.T) {
 		"another_unknown": {"nested": 1}
 	}`
 	p := provider.CursorProvider{}
-	inv, err := p.ReadInvocation(strings.NewReader(raw))
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
 	if err != nil {
-		t.Fatalf("ReadInvocation: %v", err)
+		t.Fatalf("ReadInvocations: %v", err)
 	}
-	if inv.ToolName != "Bash" {
-		t.Errorf("ToolName: %q", inv.ToolName)
+	if len(invs) != 1 || invs[0].ToolName != "Bash" {
+		t.Errorf("ToolName: %v", invs)
 	}
 }
 

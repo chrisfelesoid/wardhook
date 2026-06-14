@@ -148,6 +148,26 @@ Cursor はシェル実行を `Shell` ツール名で発火しますが、wardhoo
 
 > wardhook は parse / config エラー時に `ask` をフェイルクローズドのフォールバックとして出力します。現状の Cursor は `permission: "ask"` を受け付けますが、将来仕様変更で拒否されるようになった場合、それらのエッジケースは Cursor 側のエラー挙動に委ねられます。
 
+### 7. GitHub Copilot で使う
+
+VS Code GitHub Copilot の `PreToolUse` フックから wardhook を呼び出すには、workspace スコープの `.github/hooks/*.json` (またはユーザースコープの `~/.copilot/hooks`) に `wardhook copilot` を登録します:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "type": "command", "command": "wardhook copilot", "timeout": 15 }
+    ]
+  }
+}
+```
+
+Copilot は camelCase のツール名 (`runTerminalCommand`, `editFiles`, `createFile`, `deleteFile`, `pushToGitHub`) を発行します。wardhook は先頭 3 つを Claude の語彙 (`Bash`, `Edit`, `Write`) に正規化するため、既存の `wardhook.yaml` ルールがそのまま適用されます。Copilot 固有のツール (`deleteFile`, `pushToGitHub`) は元の名前を保ち、`tool: "deleteFile"` や `tool: "*"` のクロスツールルールでマッチできます。
+
+`editFiles` は `{"files": [...]}` で複数パスを運びます。wardhook は各パスを別個の `Edit` 評価に展開し、最も厳しい判定 (`deny > ask > allow`) が勝ちます。配列内に 1 つでも `.env` があれば呼び出し全体がブロックされます。
+
+> wardhook は常に exit code 0 + stdout JSON で応答します。Copilot の exit code 2 によるブロックパスは利用しません。
+
 ## 設定
 
 wardhook は `wardhook.yaml` を読み込みます (`--config` で上書き可能)。
