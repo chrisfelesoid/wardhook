@@ -168,6 +168,30 @@ Copilot emits camelCase tool names (`runTerminalCommand`, `editFiles`, `createFi
 
 > wardhook always responds via JSON on stdout with exit code 0. Copilot's exit-code-2 blocking path is not used.
 
+### 8. Use with Antigravity
+
+To run wardhook from Google Antigravity's `PreToolUse` hook, register `wardhook antigravity` in a workspace-scoped `.agents/hooks.json` (or globally in `~/.gemini/config/hooks.json`):
+
+```json
+{
+  "safety-gate": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "wardhook antigravity", "timeout": 15 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Antigravity emits snake_case tool names (`run_command`, `view_file`, `edit_file`, `write_file`, ...). wardhook normalizes them to Claude's vocabulary (`Bash`, `Read`, `Edit`, `Write`) and rewrites Antigravity's PascalCase argument keys (`CommandLine`, `FilePath`, `Path`) to Claude shape (`command`, `file_path`), so existing `wardhook.yaml` rules apply unchanged. Antigravity-specific tools (`list_dir`, `grep_search`, MCP `server/tool`, ...) keep their original names — match them by `tool: "<name>"` or via `tool: "*"` cross-tool rules.
+
+> wardhook always responds via JSON on stdout with exit code 0.
+
 ## Configuration
 
 wardhook reads `wardhook.yaml` (override via `--config`).
