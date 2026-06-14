@@ -25,6 +25,15 @@ type copilotInput struct {
 	ToolInput json.RawMessage `json:"tool_input"`
 }
 
+// copilotFileOpInput captures filePath in both spellings since VS Code's
+// hooks.md does not pin down whether createFile/deleteFile use camelCase
+// or snake_case. We try both and normalize to file_path (Claude vocab)
+// so the existing PassthroughParser picks it up.
+type copilotFileOpInput struct {
+	FilePathCamel string `json:"filePath"`
+	FilePathSnake string `json:"file_path"`
+}
+
 // Name returns "copilot".
 func (CopilotProvider) Name() string { return "copilot" }
 
@@ -48,12 +57,41 @@ func (CopilotProvider) ReadInvocations(r io.Reader) ([]*Invocation, error) {
 		return nil, uErr
 	}
 	claudeTool := normalizeCopilotToolName(in.ToolName)
+	normalized, nErr := normalizeCopilotToolInput(in.ToolName, in.ToolInput)
+	if nErr != nil {
+		return nil, nErr
+	}
 	return []*Invocation{{
 		ToolName:  claudeTool,
-		ToolInput: in.ToolInput,
+		ToolInput: normalized,
 		CWD:       in.CWD,
 		Raw:       raw,
 	}}, nil
+}
+
+// normalizeCopilotToolInput rewrites the tool_input payload from Copilot's
+// shape to Claude's where they differ. createFile is the only single-call
+// shape that needs rewriting; everything else (runTerminalCommand,
+// deleteFile, pushToGitHub, unknown) passes through unchanged.
+func normalizeCopilotToolInput(toolName string, in json.RawMessage) (json.RawMessage, error) {
+	if toolName != "createFile" {
+		return in, nil
+	}
+	var fp copilotFileOpInput
+	if err := json.Unmarshal(in, &fp); err != nil {
+		// Malformed tool_input: pass through. PassthroughParser will
+		// fail to extract file_path and the rule engine will treat
+		// the Write call as having no path constraint inputs.
+		return in, nil //nolint:nilerr // intentional: swallow malformed input and let downstream parser surface it
+	}
+	path := fp.FilePathSnake
+	if path == "" {
+		path = fp.FilePathCamel
+	}
+	if path == "" {
+		return in, nil
+	}
+	return json.Marshal(map[string]string{"file_path": path})
 }
 
 // normalizeCopilotToolName maps Copilot's camelCase vocabulary onto

@@ -99,3 +99,49 @@ func TestCopilotProvider_ReadInvocations_TerminalCommand(t *testing.T) {
 		t.Errorf("Raw should not be empty")
 	}
 }
+
+func TestCopilotProvider_ReadInvocations_CreateFile_FilePathCamel(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "createFile",
+		"tool_input": {"filePath": "src/new.ts"}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	if len(invs) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(invs))
+	}
+	if invs[0].ToolName != "Write" {
+		t.Errorf("ToolName: got %q, want Write", invs[0].ToolName)
+	}
+	var ti map[string]any
+	if uErr := json.Unmarshal(invs[0].ToolInput, &ti); uErr != nil {
+		t.Fatalf("ToolInput unmarshal: %v", uErr)
+	}
+	if ti["file_path"] != "src/new.ts" {
+		t.Errorf("file_path: got %v, want src/new.ts", ti["file_path"])
+	}
+}
+
+func TestCopilotProvider_ReadInvocations_CreateFile_FilePathSnake(t *testing.T) {
+	t.Parallel()
+	raw := `{
+		"cwd": "/workspace",
+		"tool_name": "createFile",
+		"tool_input": {"file_path": "src/new.ts"}
+	}`
+	p := provider.CopilotProvider{}
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
+	if err != nil {
+		t.Fatalf("ReadInvocations: %v", err)
+	}
+	var ti map[string]any
+	_ = json.Unmarshal(invs[0].ToolInput, &ti)
+	if ti["file_path"] != "src/new.ts" {
+		t.Errorf("file_path: got %v, want src/new.ts", ti["file_path"])
+	}
+}
