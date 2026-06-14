@@ -143,5 +143,8 @@ func extractDecision(o map[string]any) string {
 	if dec, _ := o["permission"].(string); dec != "" {
 		return dec
 	}
+	if dec, _ := o["decision"].(string); dec != "" {
+		return dec
+	}
 	return ""
 }
