@@ -56,10 +56,6 @@ func run(stdin io.Reader, stdout, stderr io.Writer, args []string) int {
 }
 
 func runHook(p provider.Provider, stdin io.Reader, stdout, stderr io.Writer, flags []string) int {
-	// Fail-safe: any panic in the engine degrades to ask + log.
-	// safeWriteAsk swallows a secondary panic from the provider so the
-	// exit-0 contract holds even when the provider itself is broken
-	// (e.g. the Codex/Gemini stubs panic on WriteDecision too).
 	defer func() {
 		if r := recover(); r != nil {
 			fmt.Fprintf(stderr, "[wardhook] panic: %v\n%s\n", r, debug.Stack())
@@ -75,13 +71,13 @@ func runHook(p provider.Provider, stdin io.Reader, stdout, stderr io.Writer, fla
 		return 0
 	}
 
-	inv, err := p.ReadInvocation(stdin)
+	invs, err := p.ReadInvocations(stdin)
 	if err != nil {
 		fmt.Fprintf(stderr, "[wardhook] input error: %v\n", err)
 		writeAsk(p, stdout, fmt.Sprintf("[wardhook] input error: %v", err))
 		return 0
 	}
-	debugLogf(stderr, "provider=%s tool=%s cwd=%s", p.Name(), inv.ToolName, inv.CWD)
+	debugLogf(stderr, "provider=%s invocations=%d", p.Name(), len(invs))
 
 	cfg, err := rule.Load(*configPath)
 	if err != nil {
@@ -96,18 +92,26 @@ func runHook(p provider.Provider, stdin io.Reader, stdout, stderr io.Writer, fla
 	}
 	debugLogf(stderr, "loaded %d rules from %s", len(cfg.Rules), *configPath)
 
-	pp := pickParser(inv.ToolName, cfg)
-	cmds, err := pp.Parse(inv.ToolName, inv.ToolInput)
-	if err != nil {
-		fmt.Fprintf(stderr, "[wardhook] parse error: %v\n", err)
-		writeAsk(p, stdout, fmt.Sprintf("[wardhook] parse error: %v", err))
-		return 0
+	finalDec := hook.DecisionAllow
+	finalReason := ""
+	for _, inv := range invs {
+		debugLogf(stderr, "evaluating tool=%s cwd=%s", inv.ToolName, inv.CWD)
+		pp := pickParser(inv.ToolName, cfg)
+		cmds, perr := pp.Parse(inv.ToolName, inv.ToolInput)
+		if perr != nil {
+			fmt.Fprintf(stderr, "[wardhook] parse error: %v\n", perr)
+			writeAsk(p, stdout, fmt.Sprintf("[wardhook] parse error: %v", perr))
+			return 0
+		}
+		debugLogf(stderr, "parsed %d command(s)", len(cmds))
+		dec, reason := rule.Evaluate(cfg, inv.ToolName, cmds)
+		debugLogf(stderr, "decision=%s reason=%s", dec, reason)
+		if stricter(dec, finalDec) {
+			finalDec, finalReason = dec, reason
+		}
 	}
-	debugLogf(stderr, "parsed %d command(s)", len(cmds))
 
-	dec, reason := rule.Evaluate(cfg, inv.ToolName, cmds)
-	debugLogf(stderr, "decision=%s reason=%s", dec, reason)
-	if werr := p.WriteDecision(stdout, dec, reason); werr != nil {
+	if werr := p.WriteDecision(stdout, finalDec, finalReason); werr != nil {
 		fmt.Fprintf(stderr, "[wardhook] output error: %v\n", werr)
 	}
 	return 0
@@ -138,6 +142,35 @@ func writeAsk(p provider.Provider, w io.Writer, reason string) {
 func safeWriteAsk(p provider.Provider, w io.Writer, reason string) {
 	defer func() { _ = recover() }()
 	_ = p.WriteDecision(w, hook.DecisionAsk, reason)
+}
+
+// stricter reports whether a is strictly stronger than b under deny > ask > allow.
+// Used to aggregate decisions across multiple Invocations returned by a
+// Provider (e.g. CopilotProvider expanding editFiles into N Edit invocations).
+// The same ordering is applied inside rule.Evaluate when aggregating Commands.
+func stricter(a, b hook.Decision) bool {
+	return rank(a) > rank(b)
+}
+
+// Decision priority ranks used to aggregate decisions across Invocations.
+// Higher rank beats lower: deny > ask > allow.
+const (
+	rankUnknown = 0
+	rankAllow   = 1
+	rankAsk     = 2
+	rankDeny    = 3
+)
+
+func rank(d hook.Decision) int {
+	switch d {
+	case hook.DecisionDeny:
+		return rankDeny
+	case hook.DecisionAsk:
+		return rankAsk
+	case hook.DecisionAllow:
+		return rankAllow
+	}
+	return rankUnknown
 }
 
 func debugLogf(stderr io.Writer, format string, args ...any) {

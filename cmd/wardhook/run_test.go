@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/chrisfelesoid/wardhook/internal/hook"
 )
 
 type hookOut struct {
@@ -216,6 +218,43 @@ func TestRun_Validate_MissingFile(t *testing.T) {
 	}
 	if !strings.Contains(errStr, "no such") && !strings.Contains(errStr, "not exist") {
 		t.Errorf("stderr should mention the missing file: %q", errStr)
+	}
+}
+
+func TestStricter_DenyOverAsk(t *testing.T) {
+	t.Parallel()
+	if !stricter(hook.DecisionDeny, hook.DecisionAsk) {
+		t.Errorf("deny should be stricter than ask")
+	}
+}
+
+func TestStricter_AskOverAllow(t *testing.T) {
+	t.Parallel()
+	if !stricter(hook.DecisionAsk, hook.DecisionAllow) {
+		t.Errorf("ask should be stricter than allow")
+	}
+}
+
+func TestStricter_DenyOverAllow(t *testing.T) {
+	t.Parallel()
+	if !stricter(hook.DecisionDeny, hook.DecisionAllow) {
+		t.Errorf("deny should be stricter than allow")
+	}
+}
+
+func TestStricter_NotReflexive(t *testing.T) {
+	t.Parallel()
+	for _, d := range []hook.Decision{hook.DecisionAllow, hook.DecisionAsk, hook.DecisionDeny} {
+		if stricter(d, d) {
+			t.Errorf("decision %q should not be strictly stronger than itself", d)
+		}
+	}
+}
+
+func TestStricter_AllowNotStricterThanAsk(t *testing.T) {
+	t.Parallel()
+	if stricter(hook.DecisionAllow, hook.DecisionAsk) {
+		t.Errorf("allow should not be stricter than ask")
 	}
 }
 

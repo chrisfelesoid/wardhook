@@ -15,14 +15,14 @@ func TestGeminiProvider_Name(t *testing.T) {
 	}
 }
 
-func TestGeminiProvider_ReadInvocation_Panics(t *testing.T) {
+func TestGeminiProvider_ReadInvocations_Panics(t *testing.T) {
 	t.Parallel()
 	defer func() {
 		if r := recover(); r == nil {
 			t.Fatal("expected panic, got none")
 		}
 	}()
-	_, _ = (provider.GeminiProvider{}).ReadInvocation(strings.NewReader("{}"))
+	_, _ = (provider.GeminiProvider{}).ReadInvocations(strings.NewReader("{}"))
 }
 
 func TestGeminiProvider_WriteDecision_Panics(t *testing.T) {

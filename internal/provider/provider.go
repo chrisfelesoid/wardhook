@@ -31,14 +31,17 @@ type Invocation struct {
 // Provider implements the I/O contract for one specific CLI.
 // The rule engine never depends on Provider; only cmd/wardhook does.
 type Provider interface {
-	// Name returns "claude" / "codex" / "cursor" / "gemini" — used for logging and
-	// subcommand routing. MUST match the subcommand string and be lowercase.
+	// Name returns "claude" / "codex" / "cursor" / "copilot" / "gemini" — used
+	// for logging and subcommand routing. MUST match the subcommand string
+	// and be lowercase.
 	Name() string
 
-	// ReadInvocation reads one hook event from r and returns the
-	// normalized Invocation. Returns an error if r is not parseable
-	// as this provider's expected schema.
-	ReadInvocation(r io.Reader) (*Invocation, error)
+	// ReadInvocations reads one hook event from r and returns one or more
+	// normalized Invocations. Most providers return a single-element slice;
+	// CopilotProvider returns N Invocations when expanding editFiles into
+	// per-file Edit calls. Implementations MUST NOT return an empty slice
+	// on success.
+	ReadInvocations(r io.Reader) ([]*Invocation, error)
 
 	// WriteDecision writes the decision back to w in this provider's
 	// expected response format. The Decision values are the Claude

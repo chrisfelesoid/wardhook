@@ -18,7 +18,7 @@ func TestClaudeProvider_Name(t *testing.T) {
 	}
 }
 
-func TestClaudeProvider_ReadInvocation_PreservesFields(t *testing.T) {
+func TestClaudeProvider_ReadInvocations_PreservesFields(t *testing.T) {
 	t.Parallel()
 	raw := `{
 		"session_id": "s",
@@ -27,10 +27,14 @@ func TestClaudeProvider_ReadInvocation_PreservesFields(t *testing.T) {
 		"tool_input": {"command": "ls"}
 	}`
 	p := provider.ClaudeProvider{}
-	inv, err := p.ReadInvocation(strings.NewReader(raw))
+	invs, err := p.ReadInvocations(strings.NewReader(raw))
 	if err != nil {
-		t.Fatalf("ReadInvocation: %v", err)
+		t.Fatalf("ReadInvocations: %v", err)
 	}
+	if len(invs) != 1 {
+		t.Fatalf("expected 1 invocation, got %d", len(invs))
+	}
+	inv := invs[0]
 	if inv.ToolName != "Bash" {
 		t.Errorf("ToolName: %q", inv.ToolName)
 	}
@@ -49,10 +53,10 @@ func TestClaudeProvider_ReadInvocation_PreservesFields(t *testing.T) {
 	}
 }
 
-func TestClaudeProvider_ReadInvocation_InvalidJSON(t *testing.T) {
+func TestClaudeProvider_ReadInvocations_InvalidJSON(t *testing.T) {
 	t.Parallel()
 	p := provider.ClaudeProvider{}
-	_, err := p.ReadInvocation(strings.NewReader("{not json"))
+	_, err := p.ReadInvocations(strings.NewReader("{not json"))
 	if err == nil {
 		t.Fatal("expected error")
 	}

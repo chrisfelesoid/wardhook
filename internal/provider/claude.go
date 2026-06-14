@@ -15,9 +15,10 @@ type ClaudeProvider struct{}
 // Name returns "claude".
 func (ClaudeProvider) Name() string { return "claude" }
 
-// ReadInvocation decodes Claude Code's PreToolUse JSON from r and returns
-// it as an Invocation. The original JSON is preserved in Invocation.Raw.
-func (ClaudeProvider) ReadInvocation(r io.Reader) (*Invocation, error) {
+// ReadInvocations decodes Claude Code's PreToolUse JSON from r and returns
+// it as a single-element Invocation slice. The original JSON is preserved
+// in Invocation.Raw.
+func (ClaudeProvider) ReadInvocations(r io.Reader) ([]*Invocation, error) {
 	in, err := hook.ReadInput(r)
 	if err != nil {
 		return nil, err
@@ -28,12 +29,12 @@ func (ClaudeProvider) ReadInvocation(r io.Reader) (*Invocation, error) {
 		// it somehow does, treat it as an internal error.
 		return nil, mErr
 	}
-	return &Invocation{
+	return []*Invocation{{
 		ToolName:  in.ToolName,
 		ToolInput: in.ToolInput,
 		CWD:       in.CWD,
 		Raw:       raw,
-	}, nil
+	}}, nil
 }
 
 // WriteDecision emits Claude Code's hookSpecificOutput JSON to w.
