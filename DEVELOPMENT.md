@@ -63,6 +63,12 @@ https://github.com/microsoft/vscode-docs/blob/main/docs/agent-customization/hook
 
 ## Gemini CLI
 
+**Deprecated for personal**
+
 `interface HookInput`, `interface HookOutput`
 https://github.com/google-gemini/gemini-cli/blob/v0.45.2/packages/core/src/hooks/types.ts
 
+
+## Antigravity
+
+https://antigravity.google/docs/hooks
