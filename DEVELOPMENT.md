@@ -61,8 +61,12 @@ https://cursor.com/docs/hooks.md
 https://github.com/microsoft/vscode-docs/blob/main/docs/agent-customization/hooks.md
 
 
-## Gemini CLI
+## Antigravity
 
-`interface HookInput`, `interface HookOutput`
-https://github.com/google-gemini/gemini-cli/blob/v0.45.2/packages/core/src/hooks/types.ts
+Hook spec: https://antigravity.google/docs/hooks
 
+Hook input is delivered via stdin as JSON containing `toolCall.{name,args}`,
+`workspacePaths`, and session metadata (`stepIdx`, `conversationId`,
+`transcriptPath`, `artifactDirectoryPath`). Hook output on stdout is
+`{"decision": "allow"|"deny"|"ask", "reason": "..."}`. Hooks are registered
+in `.agents/hooks.json` (workspace) or `~/.gemini/config/hooks.json` (global).

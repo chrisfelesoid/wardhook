@@ -299,18 +299,6 @@ func TestRun_DispatchCodex_AllowsByDefaultWithNoConfig(t *testing.T) {
 	}
 }
 
-func TestRun_DispatchGemini_NotImplemented(t *testing.T) {
-	t.Parallel()
-	stdin := `{}`
-	code, _, errStr := runOnce(t, []string{"wardhook", "gemini"}, stdin)
-	if code != 0 {
-		t.Fatalf("exit code: %d", code)
-	}
-	if !strings.Contains(errStr, "panic") {
-		t.Errorf("stderr should mention panic: %q", errStr)
-	}
-}
-
 func TestRun_DispatchCursor_AllowsByDefaultWithNoConfig(t *testing.T) {
 	t.Parallel()
 	stdin := `{
@@ -534,5 +522,91 @@ func TestRun_DispatchCopilot_EditFilesMultiPath_AllSafe_Allow(t *testing.T) {
 	_ = json.Unmarshal([]byte(out), &o)
 	if o.HookSpecificOutput.PermissionDecision != "allow" {
 		t.Errorf("decision: %q (out=%s)", o.HookSpecificOutput.PermissionDecision, out)
+	}
+}
+
+func TestRun_DispatchAntigravity_AllowsByDefaultWithNoConfig(t *testing.T) {
+	t.Parallel()
+	stdin := `{
+		"toolCall": {"name":"run_command","args":{"CommandLine":"ls"}},
+		"workspacePaths": ["/workspace"],
+		"stepIdx": 1,
+		"conversationId": "c-1",
+		"transcriptPath": null,
+		"artifactDirectoryPath": null
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "antigravity", "--config", "/no/such/file.yaml"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o struct {
+		Decision string `json:"decision"`
+	}
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("invalid JSON output: %v\n%s", err, out)
+	}
+	if o.Decision != "allow" {
+		t.Errorf("decision: %q", o.Decision)
+	}
+}
+
+func TestRun_DispatchAntigravity_RespondsDenyOnMatchingRule(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm-recursive",
+		"    tool: Bash",
+		"    match: {command: rm, flags_all: [r, f]}",
+		"    action: deny",
+	})
+	stdin := `{
+		"toolCall": {"name":"run_command","args":{"CommandLine":"rm -fr ./important"}},
+		"workspacePaths": ["/workspace"]
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "antigravity", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o struct {
+		Decision string `json:"decision"`
+		Reason   string `json:"reason"`
+	}
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.Decision != "deny" {
+		t.Errorf("decision: %q (out=%s)", o.Decision, out)
+	}
+	if !strings.Contains(o.Reason, "block-rm-recursive") {
+		t.Errorf("reason should mention rule: %q", o.Reason)
+	}
+}
+
+func TestRun_DispatchAntigravity_EditFile_CrossToolEnvDeny(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-sensitive-files",
+		`    tool: "*"`,
+		"    match:",
+		"      glob:",
+		"        mode: any",
+		`        patterns: ["**/.env"]`,
+		"    action: deny",
+	})
+	stdin := `{
+		"toolCall": {"name":"edit_file","args":{"FilePath":"/workspace/.env"}},
+		"workspacePaths": ["/workspace"]
+	}`
+	code, out, _ := runOnce(t, []string{"wardhook", "antigravity", "--config", cfg}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o struct {
+		Decision string `json:"decision"`
+	}
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.Decision != "deny" {
+		t.Errorf("decision: %q (out=%s)", o.Decision, out)
 	}
 }

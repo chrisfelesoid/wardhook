@@ -1,5 +1,6 @@
-// Package provider abstracts the per-CLI (Claude Code, Codex, Gemini)
-// hook input/output JSON schema. Rule evaluation is provider-agnostic.
+// Package provider abstracts the per-CLI (Claude Code, Codex, Cursor,
+// Copilot, Antigravity) hook input/output JSON schema. Rule evaluation
+// is provider-agnostic.
 package provider
 
 import (
@@ -31,9 +32,9 @@ type Invocation struct {
 // Provider implements the I/O contract for one specific CLI.
 // The rule engine never depends on Provider; only cmd/wardhook does.
 type Provider interface {
-	// Name returns "claude" / "codex" / "cursor" / "copilot" / "gemini" — used
-	// for logging and subcommand routing. MUST match the subcommand string
-	// and be lowercase.
+	// Name returns "claude" / "codex" / "cursor" / "copilot" / "antigravity"
+	// — used for logging and subcommand routing. MUST match the subcommand
+	// string and be lowercase.
 	Name() string
 
 	// ReadInvocations reads one hook event from r and returns one or more

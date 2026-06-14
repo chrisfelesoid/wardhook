@@ -74,7 +74,7 @@ func (CursorProvider) WriteDecision(w io.Writer, dec hook.Decision, reason strin
 // through unchanged so users can match them by their original spelling.
 func normalizeCursorToolName(s string) string {
 	if s == "Shell" {
-		return "Bash"
+		return ToolBash
 	}
 	return s
 }
