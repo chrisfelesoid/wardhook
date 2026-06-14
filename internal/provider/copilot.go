@@ -149,11 +149,11 @@ func normalizeCopilotToolInput(toolName string, in json.RawMessage) (json.RawMes
 func normalizeCopilotToolName(s string) string {
 	switch s {
 	case "runTerminalCommand":
-		return "Bash"
+		return ToolBash
 	case "editFiles":
-		return "Edit"
+		return ToolEdit
 	case "createFile":
-		return "Write"
+		return ToolWrite
 	default:
 		return s
 	}
