@@ -168,6 +168,30 @@ Copilot は camelCase のツール名 (`runTerminalCommand`, `editFiles`, `creat
 
 > wardhook は常に exit code 0 + stdout JSON で応答します。Copilot の exit code 2 によるブロックパスは利用しません。
 
+### 8. Antigravity で使う
+
+Google Antigravity の `PreToolUse` フックから wardhook を呼び出すには、workspace スコープの `.agents/hooks.json` (またはグローバルの `~/.gemini/config/hooks.json`) に `wardhook antigravity` を登録します:
+
+```json
+{
+  "safety-gate": {
+    "enabled": true,
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          { "type": "command", "command": "wardhook antigravity", "timeout": 15 }
+        ]
+      }
+    ]
+  }
+}
+```
+
+Antigravity は snake_case のツール名 (`run_command`, `view_file`, `edit_file`, `write_file` など) を発行します。wardhook はこれらを Claude の語彙 (`Bash`, `Read`, `Edit`, `Write`) に正規化し、Antigravity の PascalCase 引数キー (`CommandLine`, `FilePath`, `Path`) を Claude 形式 (`command`, `file_path`) に書き換えるため、既存の `wardhook.yaml` ルールがそのまま適用されます。Antigravity 固有のツール (`list_dir`, `grep_search`, MCP `server/tool` など) は元の名前を保ち、`tool: "<name>"` や `tool: "*"` のクロスツールルールでマッチできます。
+
+> wardhook は常に exit code 0 + stdout JSON で応答します。
+
 ## 設定
 
 wardhook は `wardhook.yaml` を読み込みます (`--config` で上書き可能)。
