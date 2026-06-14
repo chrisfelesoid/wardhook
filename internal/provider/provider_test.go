@@ -33,7 +33,7 @@ func TestProvider_InvocationStruct(t *testing.T) {
 }
 
 // implementations is the canonical list of Provider implementations
-// whose ReadInvocation/WriteDecision are fully functional. Stubs whose
+// whose ReadInvocations/WriteDecision are fully functional. Stubs whose
 // I/O methods panic (currently Gemini only) are NOT included here —
 // they are covered by TestProvider_StubsHaveExpectedNames below.
 //
@@ -80,7 +80,7 @@ func TestProvider_WriteDecision_AllValues(t *testing.T) {
 }
 
 // TestProvider_StubsHaveExpectedNames covers Codex/Gemini stubs at the
-// Name level only, since their ReadInvocation/WriteDecision panic.
+// Name level only, since their ReadInvocations/WriteDecision panic.
 func TestProvider_StubsHaveExpectedNames(t *testing.T) {
 	t.Parallel()
 	cases := []struct {
