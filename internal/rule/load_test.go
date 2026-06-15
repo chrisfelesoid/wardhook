@@ -1015,3 +1015,146 @@ func TestLoad_Subcommands_EmptyPath_InExcept_Error(t *testing.T) {
 		t.Errorf("error should mention 'empty verb path': %v", err)
 	}
 }
+
+func TestLoad_Subcommands_FlatForm_OK(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: git",
+		"      subcommands_any: [push, fetch]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	cfg, err := rule.Load(p)
+	if err != nil {
+		t.Fatalf("flat form should load: %v", err)
+	}
+	got := cfg.Rules[0].Match.SubcommandsAny
+	want := rule.SubcommandPaths{{"push"}, {"fetch"}}
+	if !equalPaths(got, want) {
+		t.Errorf("flat form: got %v, want %v", got, want)
+	}
+}
+
+func TestLoad_Subcommands_NestedForm_OK(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: gh",
+		"      subcommands_any:",
+		"        - [pr, create]",
+		"        - [issue, list]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	cfg, err := rule.Load(p)
+	if err != nil {
+		t.Fatalf("nested form should load: %v", err)
+	}
+	got := cfg.Rules[0].Match.SubcommandsAny
+	want := rule.SubcommandPaths{{"pr", "create"}, {"issue", "list"}}
+	if !equalPaths(got, want) {
+		t.Errorf("nested form: got %v, want %v", got, want)
+	}
+}
+
+func TestLoad_Subcommands_DepthOneNested_EquivToFlat(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: git",
+		"      subcommands_any:",
+		"        - [push]",
+		"        - [fetch]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	cfg, err := rule.Load(p)
+	if err != nil {
+		t.Fatalf("nested depth-1 should load: %v", err)
+	}
+	got := cfg.Rules[0].Match.SubcommandsAny
+	want := rule.SubcommandPaths{{"push"}, {"fetch"}}
+	if !equalPaths(got, want) {
+		t.Errorf("nested depth-1 = flat: got %v, want %v", got, want)
+	}
+}
+
+func TestLoad_Subcommands_MixedFlatAndNested_Error(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: gh",
+		"      subcommands_any: [pr, [issue, list]]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load error for mixed flat/nested form")
+	}
+	if !strings.Contains(err.Error(), "mixed") {
+		t.Errorf("error should mention 'mixed': %v", err)
+	}
+}
+
+func TestLoad_Subcommands_NestedOnNonBashTool_Error(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Read",
+		"    match:",
+		"      subcommands_any:",
+		"        - [pr, create]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load error for nested subcommands on tool: Read")
+	}
+	if !strings.Contains(err.Error(), "Bash") {
+		t.Errorf("error should mention Bash-only constraint: %v", err)
+	}
+}
+
+func TestLoad_Subcommands_NestedInExceptOnNonBashTool_Error(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Write",
+		"    match: {}",
+		"    except:",
+		"      subcommands_any:",
+		"        - [pr, create]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load error for nested subcommands in except on tool: Write")
+	}
+	if !strings.Contains(err.Error(), "Bash") {
+		t.Errorf("error should mention Bash-only constraint: %v", err)
+	}
+}
