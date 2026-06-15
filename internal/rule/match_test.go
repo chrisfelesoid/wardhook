@@ -617,3 +617,109 @@ func TestMatch_SubcommandsAnyAndAll_AndedTogether(t *testing.T) {
 		t.Error("subcommands_all=[push] requires Args[0]==push, so fetch must fail")
 	}
 }
+
+func TestMatch_SubcommandsAny_NestedMultiDepth(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAny: rule.SubcommandPaths{{"pr", "create"}},
+	}
+	if !matchSpec(&spec, mkCmd("gh", nil, []string{"pr", "create", "#123"})) {
+		t.Error("gh pr create #123 should match [[pr, create]]")
+	}
+}
+
+func TestMatch_SubcommandsAny_NestedMultiDepth_NoMatch(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAny: rule.SubcommandPaths{{"pr", "create"}},
+	}
+	if matchSpec(&spec, mkCmd("gh", nil, []string{"pr", "list"})) {
+		t.Error("gh pr list must not match [[pr, create]] (Args[1] != create)")
+	}
+}
+
+func TestMatch_SubcommandsAny_NestedMultiDepth_ArgsTooShort(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAny: rule.SubcommandPaths{{"pr", "create"}},
+	}
+	if matchSpec(&spec, mkCmd("gh", nil, []string{"pr"})) {
+		t.Error("gh pr (Args shorter than path) must not match [[pr, create]] (fail-closed)")
+	}
+}
+
+func TestMatch_SubcommandsAny_NestedOR(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command: "gh",
+		SubcommandsAny: rule.SubcommandPaths{
+			{"pr", "create"},
+			{"issue", "list"},
+		},
+	}
+	if !matchSpec(&spec, mkCmd("gh", nil, []string{"issue", "list"})) {
+		t.Error("gh issue list should match the second nested path")
+	}
+}
+
+func TestMatch_SubcommandsAny_NestedDepthOne_EqualsFlat(t *testing.T) {
+	t.Parallel()
+	flat := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAny: rule.SubcommandPaths{{"pr"}, {"create"}},
+	}
+	cmd := mkCmd("gh", nil, []string{"pr", "create"})
+	if !matchSpec(&flat, cmd) {
+		t.Error("[[pr], [create]] (depth-1 OR) should match Args[0]=pr")
+	}
+}
+
+func TestMatch_SubcommandsAll_NestedSingle(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAll: rule.SubcommandPaths{{"pr", "create"}},
+	}
+	if !matchSpec(&spec, mkCmd("gh", nil, []string{"pr", "create", "x"})) {
+		t.Error("single-path _all should match anchored prefix")
+	}
+}
+
+func TestMatch_SubcommandsAll_NestedMultiple_AlwaysFalse(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command: "gh",
+		SubcommandsAll: rule.SubcommandPaths{
+			{"pr", "create"},
+			{"issue", "list"},
+		},
+	}
+	if matchSpec(&spec, mkCmd("gh", nil, []string{"pr", "create"})) {
+		t.Error("two anchored paths cannot both start at Args[0]; _all must be false")
+	}
+}
+
+func TestMatch_SubcommandsAny_NestedCaseSensitive(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAny: rule.SubcommandPaths{{"PR", "Create"}},
+	}
+	if matchSpec(&spec, mkCmd("gh", nil, []string{"pr", "create"})) {
+		t.Error("case-sensitive match: [[PR, Create]] must not match lowercased Args")
+	}
+}
+
+func TestMatch_PathAnchored_AcceptsPrefixWithLongerArgs(t *testing.T) {
+	t.Parallel()
+	spec := rule.MatchSpec{
+		Command:        "gh",
+		SubcommandsAny: rule.SubcommandPaths{{"pr"}},
+	}
+	if !matchSpec(&spec, mkCmd("gh", nil, []string{"pr", "create", "x"})) {
+		t.Error("depth-1 path should match even when Args has more elements")
+	}
+}
