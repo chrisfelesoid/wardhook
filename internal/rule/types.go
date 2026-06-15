@@ -3,8 +3,11 @@
 package rule
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
+
+	"gopkg.in/yaml.v3"
 
 	"github.com/chrisfelesoid/wardhook/internal/clispec"
 	"github.com/chrisfelesoid/wardhook/internal/hook"
@@ -44,6 +47,70 @@ type MatchSpec struct {
 	SubcommandsAny []string            `yaml:"subcommands_any,omitempty"`
 	Glob           *GlobMatch          `yaml:"glob,omitempty"`
 	Regex          *RegexMatch         `yaml:"regex,omitempty"`
+}
+
+// SubcommandPath is a sequence of verbs to match. The flat form
+// [pr, create] is normalized at load time so each element becomes
+// a single-verb SubcommandPath (equivalent to [[pr], [create]]).
+type SubcommandPath []string
+
+// SubcommandPaths is a set of SubcommandPath values. Its YAML
+// representation accepts a union of the flat form ([pr, create])
+// and the nested form ([[pr, create]]).
+type SubcommandPaths []SubcommandPath
+
+// UnmarshalYAML decodes either the flat form
+//
+//	subcommands_any: [pr, create]
+//
+// (each element is treated as a depth-1 path, equivalent to
+//
+//	subcommands_any: [[pr], [create]]
+//
+// ) or the nested form
+//
+//	subcommands_any: [[pr, create], [issue, list]]
+//
+// Mixing flat and nested entries in the same sequence is an error.
+func (s *SubcommandPaths) UnmarshalYAML(node *yaml.Node) error {
+	if node.Kind != yaml.SequenceNode {
+		return fmt.Errorf("subcommands_*: must be a sequence (got kind %d)", node.Kind)
+	}
+	if len(node.Content) == 0 {
+		*s = nil
+		return nil
+	}
+	firstKind := node.Content[0].Kind
+	out := make(SubcommandPaths, 0, len(node.Content))
+	switch firstKind {
+	case yaml.ScalarNode:
+		for i, child := range node.Content {
+			if child.Kind != yaml.ScalarNode {
+				return fmt.Errorf("subcommands_*[%d]: mixed flat and nested form", i)
+			}
+			out = append(out, SubcommandPath{child.Value})
+		}
+	case yaml.SequenceNode:
+		for i, child := range node.Content {
+			if child.Kind != yaml.SequenceNode {
+				return fmt.Errorf("subcommands_*[%d]: mixed flat and nested form", i)
+			}
+			path := make(SubcommandPath, 0, len(child.Content))
+			for j, v := range child.Content {
+				if v.Kind != yaml.ScalarNode {
+					return fmt.Errorf("subcommands_*[%d][%d]: must be a string", i, j)
+				}
+				path = append(path, v.Value)
+			}
+			out = append(out, path)
+		}
+	case yaml.DocumentNode, yaml.MappingNode, yaml.AliasNode:
+		return errors.New("subcommands_*[0]: must be a string or list of strings")
+	default:
+		return errors.New("subcommands_*[0]: must be a string or list of strings")
+	}
+	*s = out
+	return nil
 }
 
 // FlagValueMatch declares that flag Name must be present in
