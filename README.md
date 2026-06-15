@@ -232,8 +232,8 @@ rules: [ ... ]                # required, list of rules
 | `flags_any` | `[]string` | At least one listed flag must match |
 | `flag_aliases` | `map[string][]string` | Local alias table: `r: [recursive]` treats `--recursive` as `-r` |
 | `flag_values` | `[]FlagValueMatch` | Match against captured flag values. Each entry is `{name, glob?, regex?}` (at least one of `glob`/`regex` required; both → AND). See "Flag value matching" below. |
-| `subcommands_all` | `[]string` | (Bash only) `Args[0]` matches every item (effectively single-match). See "Subcommand matching" below. |
-| `subcommands_any` | `[]string` | (Bash only) `Args[0]` matches any item in the list. Exact string comparison. See "Subcommand matching" below. |
+| `subcommands_all` | `[]string` or `[][]string` | (Bash only) Verb path(s) matched against `Args`. Flat form is depth-1 AND (effectively single-match); nested form matches multi-level verbs. See "Subcommand matching" below. |
+| `subcommands_any` | `[]string` or `[][]string` | (Bash only) Verb path(s) matched against `Args`. Flat form is depth-1 OR; nested form matches multi-level verbs. See "Subcommand matching" below. |
 | `glob` | `*GlobMatch` | Glob match against `Command.Args`. `{mode: any\|all, patterns: [...]}`. See "Glob matching". |
 | `regex` | `*RegexMatch` | Regex match against `Command.Args`. `{mode: any\|all, patterns: [...]}`. AND'd with `glob` when both are present. See "Regex matching". |
 
@@ -294,18 +294,34 @@ match:
 
 Matches `git push --force ...` and `git push -f ...`. `flags_any` always compares against the canonical short name (`f`); the long form `force` is resolved to `f` via `flag_aliases` before comparison.
 
-### Multi-level subcommands
+### Nested form: multi-level subcommands
 
-`subcommands_any` only inspects `Args[0]`. To target `git remote add`, combine with `regex`:
+`subcommands_any` / `subcommands_all` accept a nested list of verb paths for
+matching multi-level subcommands like `gh pr create` or `kubectl get pods`:
 
 ```yaml
-match:
-  command: git
-  subcommands_any: [remote]
-  regex: { mode: any, patterns: ['^add$'] }
+- name: deny-gh-pr-create
+  tool: Bash
+  match:
+    command: gh
+    subcommands_any:
+      - [pr, create]   # matches `gh pr create ...`
+      - [issue, list]  # matches `gh issue list ...`
+  action: deny
 ```
 
-`regex` is evaluated across all of `Args`, so `add` at any position will match.
+Each inner list is anchored at `Args[0]`. `gh pr list` (`Args=[pr, list]`)
+matches `[pr, list]` but not `[pr, create]`.
+
+The flat form `[pr, create]` remains valid and is treated as two depth-1
+paths (equivalent to `[[pr], [create]]`). Mixing flat and nested entries
+in the same field is a config error.
+
+Multi-level matching relies on `Args[i]` being the actual positional verb
+at position `i`. If the target CLI uses value-taking flags that are not
+declared in `defaults.cli_specs.<cli>.value_taking_flags`, their values
+can leak into `Args` and shift the verb positions. Declaring
+value-taking flags for the target CLI is recommended.
 
 ### Semantics summary
 
@@ -317,6 +333,10 @@ match:
 | `subcommands_any: [push]`, `Args[0] = "push"` | true |
 | `subcommands_all: [push, fetch]` (multi) | always false — `Args[0]` is a single value |
 | `subcommands_any` + `subcommands_all` together | AND |
+| `subcommands_any: [[pr, create]]`, `Args = [pr, create]` | true (anchored prefix) |
+| `subcommands_any: [[pr, create]]`, `Args = [pr, list]` | false (`Args[1]` mismatch) |
+| `subcommands_any: [[pr, create]]`, `Args = [pr]` | false (`Args` shorter than path, fail-closed) |
+| `subcommands_any: [pr, [issue, list]]` (mixed flat + nested) | load error |
 
 ## Glob matching
 

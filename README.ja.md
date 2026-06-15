@@ -232,8 +232,8 @@ rules: [ ... ]                # 必須、ルールのリスト
 | `flags_any` | `[]string` | 列挙されたフラグのうち少なくとも 1 つが一致 |
 | `flag_aliases` | `map[string][]string` | ローカルなエイリアステーブル: `r: [recursive]` で `--recursive` を `-r` と等価に扱う |
 | `flag_values` | `[]FlagValueMatch` | 捕捉したフラグの値に対するマッチ。各エントリは `{name, glob?, regex?}` (`glob`/`regex` のいずれかが必須、両方指定時は AND)。下記「フラグ値のマッチング」を参照。 |
-| `subcommands_all` | `[]string` | (Bash のみ) `Args[0]` がリストの全要素と一致 (実質単一マッチ)。後述の「サブコマンドマッチング」を参照 |
-| `subcommands_any` | `[]string` | (Bash のみ) `Args[0]` がリストのいずれかと一致 (完全一致)。後述の「サブコマンドマッチング」を参照 |
+| `subcommands_all` | `[]string` または `[][]string` | (Bash のみ) verb 列を `Args` 先頭から照合。フラット形式は深さ 1 の AND (実質単一マッチ)、ネスト形式は多階層 verb にマッチ。後述の「サブコマンドマッチング」を参照 |
+| `subcommands_any` | `[]string` または `[][]string` | (Bash のみ) verb 列を `Args` 先頭から照合。フラット形式は深さ 1 の OR、ネスト形式は多階層 verb にマッチ。後述の「サブコマンドマッチング」を参照 |
 | `glob` | `*GlobMatch` | `Command.Args` に対するglobマッチ。`{mode: any\|all, patterns: [...]}`。「globマッチ」を参照。 |
 | `regex` | `*RegexMatch` | `Command.Args` に対する正規表現マッチ。`{mode: any\|all, patterns: [...]}`。`glob` と併用すると AND。「正規表現マッチ」を参照。 |
 
@@ -294,18 +294,36 @@ match:
 
 `git push --force ...` と `git push -f ...` の両方にマッチします。`flags_any` は常に正規化後の短形 (`f`) と比較されるため、長形 `force` は `flag_aliases` 経由で `f` に解決されてから判定されます。
 
-### 多階層サブコマンド
+### ネスト形式: 多階層サブコマンド
 
-`subcommands_any` は `Args[0]` のみを見ます。`git remote add` のようなパターンには `regex` を併用してください:
+`subcommands_any` / `subcommands_all` は、`gh pr create` や
+`kubectl get pods` のような多階層サブコマンドを照合するために、
+verb 列のネストリストを受け付けます:
 
 ```yaml
-match:
-  command: git
-  subcommands_any: [remote]
-  regex: { mode: any, patterns: ['^add$'] }
+- name: deny-gh-pr-create
+  tool: Bash
+  match:
+    command: gh
+    subcommands_any:
+      - [pr, create]   # `gh pr create ...` にマッチ
+      - [issue, list]  # `gh issue list ...` にマッチ
+  action: deny
 ```
 
-`regex` は `Args` 全体に対して評価されるため、`add` が任意の位置にあればマッチします。
+各内側リストは `Args[0]` を起点にアンカーされます。`gh pr list`
+(`Args=[pr, list]`) は `[pr, list]` にマッチしますが `[pr, create]` には
+マッチしません。
+
+フラット形式 `[pr, create]` は引き続き有効で、内部的には深さ 1 の
+2 つのパス (`[[pr], [create]]` と等価) として扱われます。同一フィールドに
+フラットとネストを混在させると設定エラーになります。
+
+多階層マッチは `Args[i]` がそのまま位置 `i` の verb であることに依存します。
+対象 CLI が値取りフラグを持ち、それが
+`defaults.cli_specs.<cli>.value_taking_flags` に登録されていない場合、
+フラグの値が `Args` に混入して verb の位置がずれる可能性があります。
+対象 CLI の値取りフラグは登録しておくことを推奨します。
 
 ### セマンティクス一覧
 
@@ -317,6 +335,10 @@ match:
 | `subcommands_any: [push]`、`Args[0] = "push"` | true |
 | `subcommands_all: [push, fetch]` (複数) | 常に false (`Args[0]` は単一値のため) |
 | `subcommands_any` と `subcommands_all` の併用 | AND |
+| `subcommands_any: [[pr, create]]`、`Args = [pr, create]` | true (アンカー prefix 一致) |
+| `subcommands_any: [[pr, create]]`、`Args = [pr, list]` | false (`Args[1]` 不一致) |
+| `subcommands_any: [[pr, create]]`、`Args = [pr]` | false (`Args` が path より短い、fail-closed) |
+| `subcommands_any: [pr, [issue, list]]` (フラット + ネスト混在) | Load エラー |
 
 ## globマッチ
 
