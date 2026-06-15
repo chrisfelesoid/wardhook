@@ -67,6 +67,37 @@ func TestFormatExceptDetail_PicksFirstNonEmptyClause(t *testing.T) {
 			want: `regex "^777$"`,
 		},
 		{
+			name: "subcommands_any depth-1 nested prints flat form",
+			spec: rule.MatchSpec{
+				SubcommandsAny: rule.SubcommandPaths{{"push"}, {"fetch"}},
+			},
+			want: "subcommands_any [push fetch]",
+		},
+		{
+			name: "subcommands_any depth-2 prints nested form",
+			spec: rule.MatchSpec{
+				SubcommandsAny: rule.SubcommandPaths{{"pr", "create"}},
+			},
+			want: "subcommands_any [[pr create]]",
+		},
+		{
+			name: "subcommands_any mixed depths prints nested form",
+			spec: rule.MatchSpec{
+				SubcommandsAny: rule.SubcommandPaths{
+					{"pr", "create"},
+					{"issue", "list"},
+				},
+			},
+			want: "subcommands_any [[pr create] [issue list]]",
+		},
+		{
+			name: "subcommands_all depth-2 prints nested form",
+			spec: rule.MatchSpec{
+				SubcommandsAll: rule.SubcommandPaths{{"pr", "create"}},
+			},
+			want: "subcommands_all [[pr create]]",
+		},
+		{
 			name: "empty spec produces empty string",
 			spec: rule.MatchSpec{},
 			want: "",
