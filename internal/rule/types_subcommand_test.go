@@ -1,6 +1,7 @@
 package rule_test
 
 import (
+	"strings"
 	"testing"
 
 	"gopkg.in/yaml.v3"
@@ -63,7 +64,7 @@ func TestSubcommandPaths_UnmarshalYAML_MixedFormError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for mixed flat/nested form")
 	}
-	if !contains(err.Error(), "mixed") {
+	if !strings.Contains(err.Error(), "mixed") {
 		t.Errorf("error should mention 'mixed': %v", err)
 	}
 }
@@ -75,6 +76,9 @@ func TestSubcommandPaths_UnmarshalYAML_NotASequenceError(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error for scalar input")
 	}
+	if !strings.Contains(err.Error(), "must be a sequence") {
+		t.Errorf("error should mention 'must be a sequence': %v", err)
+	}
 }
 
 func TestSubcommandPaths_UnmarshalYAML_MapElementError(t *testing.T) {
@@ -83,6 +87,9 @@ func TestSubcommandPaths_UnmarshalYAML_MapElementError(t *testing.T) {
 	err := yaml.Unmarshal([]byte("[{a: b}]"), &got)
 	if err == nil {
 		t.Fatal("expected error for map element")
+	}
+	if !strings.Contains(err.Error(), "must be a string or list of strings") {
+		t.Errorf("error should mention element kind constraint: %v", err)
 	}
 }
 
@@ -101,13 +108,4 @@ func equalPaths(a, b rule.SubcommandPaths) bool {
 		}
 	}
 	return true
-}
-
-func contains(s, sub string) bool {
-	for i := 0; i+len(sub) <= len(s); i++ {
-		if s[i:i+len(sub)] == sub {
-			return true
-		}
-	}
-	return false
 }
