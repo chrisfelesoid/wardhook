@@ -948,3 +948,70 @@ func TestLoad_SubcommandsEmptyArrayOnRead_OK(t *testing.T) {
 		t.Fatalf("Load should accept empty subcommands_any on non-Bash: %v", err)
 	}
 }
+
+func TestLoad_Subcommands_EmptyPath_Error(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: git",
+		"      subcommands_any: [[]]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load error for empty verb path")
+	}
+	if !strings.Contains(err.Error(), "empty verb path") {
+		t.Errorf("error should mention 'empty verb path': %v", err)
+	}
+}
+
+func TestLoad_Subcommands_EmptyVerb_Error(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: git",
+		`      subcommands_any: [[pr, ""]]`,
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load error for empty verb")
+	}
+	if !strings.Contains(err.Error(), "empty verb") {
+		t.Errorf("error should mention 'empty verb': %v", err)
+	}
+}
+
+func TestLoad_Subcommands_EmptyPath_InExcept_Error(t *testing.T) {
+	t.Parallel()
+	src := []string{
+		"version: 1",
+		"rules:",
+		"  - name: r",
+		"    tool: Bash",
+		"    match:",
+		"      command: git",
+		"    except:",
+		"      subcommands_any: [[]]",
+		"    action: deny",
+	}
+	p := writeYAML(t, strings.Join(src, "\n"))
+	_, err := rule.Load(p)
+	if err == nil {
+		t.Fatal("expected Load error for empty verb path in except")
+	}
+	if !strings.Contains(err.Error(), "empty verb path") {
+		t.Errorf("error should mention 'empty verb path': %v", err)
+	}
+}
