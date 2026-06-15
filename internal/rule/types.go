@@ -43,8 +43,8 @@ type MatchSpec struct {
 	FlagsAny       []string            `yaml:"flags_any,omitempty"`
 	FlagAliases    map[string][]string `yaml:"flag_aliases,omitempty"`
 	FlagValues     []FlagValueMatch    `yaml:"flag_values,omitempty"`
-	SubcommandsAll []string            `yaml:"subcommands_all,omitempty"`
-	SubcommandsAny []string            `yaml:"subcommands_any,omitempty"`
+	SubcommandsAll SubcommandPaths     `yaml:"subcommands_all,omitempty"`
+	SubcommandsAny SubcommandPaths     `yaml:"subcommands_any,omitempty"`
 	Glob           *GlobMatch          `yaml:"glob,omitempty"`
 	Regex          *RegexMatch         `yaml:"regex,omitempty"`
 }

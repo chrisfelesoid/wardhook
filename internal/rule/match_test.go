@@ -510,7 +510,7 @@ func TestMatch_FlagValues_GlobAndRegex_AND(t *testing.T) {
 
 func TestMatch_SubcommandsAny_SingleMatch(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAny: []string{"push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAny: rule.SubcommandPaths{{"push"}}}
 	if !matchSpec(&spec, mkCmd("git", nil, []string{"push", "origin", "main"})) {
 		t.Error("git push origin main should match subcommands_any=[push]")
 	}
@@ -518,7 +518,7 @@ func TestMatch_SubcommandsAny_SingleMatch(t *testing.T) {
 
 func TestMatch_SubcommandsAny_MultiOption(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAny: []string{"push", "fetch", "pull"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAny: rule.SubcommandPaths{{"push"}, {"fetch"}, {"pull"}}}
 	if !matchSpec(&spec, mkCmd("git", nil, []string{"fetch", "upstream"})) {
 		t.Error("git fetch upstream should match subcommands_any=[push fetch pull]")
 	}
@@ -526,7 +526,7 @@ func TestMatch_SubcommandsAny_MultiOption(t *testing.T) {
 
 func TestMatch_SubcommandsAny_NoMatch(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAny: []string{"push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAny: rule.SubcommandPaths{{"push"}}}
 	if matchSpec(&spec, mkCmd("git", nil, []string{"status"})) {
 		t.Error("git status should not match subcommands_any=[push]")
 	}
@@ -534,7 +534,7 @@ func TestMatch_SubcommandsAny_NoMatch(t *testing.T) {
 
 func TestMatch_SubcommandsAny_EmptyArgs(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAny: []string{"push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAny: rule.SubcommandPaths{{"push"}}}
 	if matchSpec(&spec, mkCmd("git", nil, nil)) {
 		t.Error("git (no args) must not match subcommands_any=[push] (fail-closed)")
 	}
@@ -550,7 +550,7 @@ func TestMatch_SubcommandsAny_EmptySpec_Passthrough(t *testing.T) {
 
 func TestMatch_SubcommandsAny_CaseSensitive(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAny: []string{"Push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAny: rule.SubcommandPaths{{"Push"}}}
 	if matchSpec(&spec, mkCmd("git", nil, []string{"push"})) {
 		t.Error("case-sensitive comparison: Push must not match push")
 	}
@@ -558,7 +558,7 @@ func TestMatch_SubcommandsAny_CaseSensitive(t *testing.T) {
 
 func TestMatch_SubcommandsAll_SingleMatch(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAll: []string{"push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAll: rule.SubcommandPaths{{"push"}}}
 	if !matchSpec(&spec, mkCmd("git", nil, []string{"push", "origin"})) {
 		t.Error("git push origin should match subcommands_all=[push]")
 	}
@@ -566,7 +566,7 @@ func TestMatch_SubcommandsAll_SingleMatch(t *testing.T) {
 
 func TestMatch_SubcommandsAll_EmptyArgs(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAll: []string{"push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAll: rule.SubcommandPaths{{"push"}}}
 	if matchSpec(&spec, mkCmd("git", nil, nil)) {
 		t.Error("git (no args) must not match subcommands_all=[push] (fail-closed)")
 	}
@@ -574,7 +574,7 @@ func TestMatch_SubcommandsAll_EmptyArgs(t *testing.T) {
 
 func TestMatch_SubcommandsAll_MultipleWants_AlwaysFalse(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAll: []string{"push", "fetch"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAll: rule.SubcommandPaths{{"push"}, {"fetch"}}}
 	if matchSpec(&spec, mkCmd("git", nil, []string{"push"})) {
 		t.Error("subcommands_all=[push fetch] cannot match a single Args[0]")
 	}
@@ -582,7 +582,7 @@ func TestMatch_SubcommandsAll_MultipleWants_AlwaysFalse(t *testing.T) {
 
 func TestMatch_SubcommandsAny_AndedWithCommand(t *testing.T) {
 	t.Parallel()
-	spec := rule.MatchSpec{Command: "git", SubcommandsAny: []string{"push"}}
+	spec := rule.MatchSpec{Command: "git", SubcommandsAny: rule.SubcommandPaths{{"push"}}}
 	if matchSpec(&spec, mkCmd("docker", nil, []string{"push", "img"})) {
 		t.Error("command=git is AND, so docker push should not match")
 	}
@@ -592,7 +592,7 @@ func TestMatch_SubcommandsAny_AndedWithFlags(t *testing.T) {
 	t.Parallel()
 	spec := rule.MatchSpec{
 		Command:        "git",
-		SubcommandsAny: []string{"push"},
+		SubcommandsAny: rule.SubcommandPaths{{"push"}},
 		FlagsAny:       []string{"force"},
 	}
 	if !matchSpec(&spec, mkCmd("git", []string{"force"}, []string{"push", "origin"})) {
@@ -607,8 +607,8 @@ func TestMatch_SubcommandsAnyAndAll_AndedTogether(t *testing.T) {
 	t.Parallel()
 	spec := rule.MatchSpec{
 		Command:        "git",
-		SubcommandsAll: []string{"push"},
-		SubcommandsAny: []string{"push", "fetch"},
+		SubcommandsAll: rule.SubcommandPaths{{"push"}},
+		SubcommandsAny: rule.SubcommandPaths{{"push"}, {"fetch"}},
 	}
 	if !matchSpec(&spec, mkCmd("git", nil, []string{"push"})) {
 		t.Error("both clauses satisfied by push")

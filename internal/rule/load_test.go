@@ -840,7 +840,9 @@ func TestLoad_SubcommandsOnBash_OK(t *testing.T) {
 		t.Fatalf("rules: %d", len(cfg.Rules))
 	}
 	got := cfg.Rules[0].Match.SubcommandsAny
-	if len(got) != 2 || got[0] != "push" || got[1] != "fetch" {
+	if len(got) != 2 ||
+		len(got[0]) != 1 || got[0][0] != "push" ||
+		len(got[1]) != 1 || got[1][0] != "fetch" {
 		t.Errorf("subcommands_any: %v", got)
 	}
 }
