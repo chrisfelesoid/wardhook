@@ -74,7 +74,7 @@ type SubcommandPaths []SubcommandPath
 // Mixing flat and nested entries in the same sequence is an error.
 func (s *SubcommandPaths) UnmarshalYAML(node *yaml.Node) error {
 	if node.Kind != yaml.SequenceNode {
-		return fmt.Errorf("subcommands_*: must be a sequence (got kind %d)", node.Kind)
+		return fmt.Errorf("subcommands_*: must be a sequence (got %s)", describeYAMLKind(node.Kind))
 	}
 	if len(node.Content) == 0 {
 		*s = nil
@@ -111,6 +111,25 @@ func (s *SubcommandPaths) UnmarshalYAML(node *yaml.Node) error {
 	}
 	*s = out
 	return nil
+}
+
+// describeYAMLKind returns a human-readable label for a yaml.Kind
+// value, used in error messages instead of the raw numeric kind.
+func describeYAMLKind(k yaml.Kind) string {
+	switch k {
+	case yaml.ScalarNode:
+		return "scalar"
+	case yaml.SequenceNode:
+		return "sequence"
+	case yaml.MappingNode:
+		return "mapping"
+	case yaml.DocumentNode:
+		return "document"
+	case yaml.AliasNode:
+		return "alias"
+	default:
+		return "unknown"
+	}
 }
 
 // FlagValueMatch declares that flag Name must be present in

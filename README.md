@@ -262,7 +262,7 @@ The `reason` field reports the winning rule.
 
 ## Subcommand matching
 
-`subcommands_any` and `subcommands_all` match against `Command.Args[0]` — the first positional argument after the command name. They are valid only on `tool: Bash` rules; using them on `Read` / `Write` / `*` etc. is a load-time error.
+`subcommands_any` and `subcommands_all` are anchored at the start of `Command.Args` and match one or more verb paths. The flat form (`[push, fetch]`) is depth-1 — each entry is a single verb compared against `Args[0]`. The nested form (`[[pr, create]]`) supports multi-level verbs and matches a verb path as an anchored prefix of `Args`. They are valid only on `tool: Bash` rules; using them on `Read` / `Write` / `*` etc. is a load-time error.
 
 Always pair `subcommands_*` with `command:`. Omitting `command:` matches `Args[0]` across every Bash invocation, so `subcommands_any: [push]` alone would also fire on `docker push`, `helm push`, and any other CLI whose first positional argument happens to be `push`.
 

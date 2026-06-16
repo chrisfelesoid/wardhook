@@ -262,7 +262,7 @@ rules: [ ... ]                # 必須、ルールのリスト
 
 ## サブコマンドマッチング
 
-`subcommands_any` / `subcommands_all` は `Command.Args[0]` (コマンド名直後の第 1 位置引数) に対する完全一致集合判定です。`tool: Bash` ルールでのみ有効で、`Read` / `Write` / `*` などに指定すると Load 時エラーになります。
+`subcommands_any` / `subcommands_all` は `Command.Args` の先頭に対してアンカーされ、1 つ以上の verb パスと照合します。フラット形式 (`[push, fetch]`) は深さ 1 — 各要素が単一 verb として `Args[0]` と比較されます。ネスト形式 (`[[pr, create]]`) は多階層 verb をサポートし、verb パスを `Args` のアンカー prefix として照合します。`tool: Bash` ルールでのみ有効で、`Read` / `Write` / `*` などに指定すると Load 時エラーになります。
 
 `subcommands_*` は必ず `command:` と併用してください。`command:` を省略すると `Args[0]` をあらゆる Bash 呼び出しに対して比較するため、`subcommands_any: [push]` 単独で `docker push` や `helm push` など `push` を第 1 位置引数に持つ別 CLI まで巻き込んでしまいます。
 
