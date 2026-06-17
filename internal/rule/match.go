@@ -2,7 +2,6 @@ package rule
 
 import (
 	"regexp"
-	"slices"
 
 	"github.com/bmatcuk/doublestar/v4"
 
@@ -64,39 +63,56 @@ func matchFlagsAny(want []string, canonical map[string]struct{}) bool {
 	return false
 }
 
-// matchSubcommandsAll reports whether cmd.Args[0] equals every wanted
-// subcommand. Because Args[0] is a single string, the only useful shape
-// is a single-element wants list — the multi-element form exists for
-// API symmetry with flags_all and is documented as effectively
-// "single-match". An empty wants list is passthrough (true). An empty
-// args slice is fail-closed (false): if the command has no positional
-// arguments there is nothing to match a subcommand against.
-func matchSubcommandsAll(wants []string, args []string) bool {
-	if len(wants) == 0 {
+// matchSubcommandsAny reports whether at least one verb path in wants
+// anchor-matches Args (i.e. Args[0:len(path)] == path). Empty wants is
+// passthrough (true). Empty args is fail-closed (false).
+func matchSubcommandsAny(paths SubcommandPaths, args []string) bool {
+	if len(paths) == 0 {
 		return true
 	}
-	if len(args) == 0 {
-		return false
+	for _, p := range paths {
+		if matchPathAnchored(p, args) {
+			return true
+		}
 	}
-	for _, w := range wants {
-		if args[0] != w {
+	return false
+}
+
+// matchSubcommandsAll reports whether every verb path in wants
+// anchor-matches Args. With multiple paths this is effectively
+// "single-match" because all of them must start at Args[0], so only
+// the single-path case is meaningful in practice. Empty wants is
+// passthrough (true).
+func matchSubcommandsAll(paths SubcommandPaths, args []string) bool {
+	if len(paths) == 0 {
+		return true
+	}
+	for _, p := range paths {
+		if !matchPathAnchored(p, args) {
 			return false
 		}
 	}
 	return true
 }
 
-// matchSubcommandsAny reports whether cmd.Args[0] equals any of the
-// wanted subcommands. Empty wants is passthrough; empty args is
-// fail-closed.
-func matchSubcommandsAny(wants []string, args []string) bool {
-	if len(wants) == 0 {
-		return true
-	}
-	if len(args) == 0 {
+// matchPathAnchored reports whether Args[0:len(path)] equals path
+// element-wise. An empty path is false (defensive; load validation
+// should reject empty paths). Args shorter than path is false
+// (fail-closed: the command has fewer positionals than the path
+// requires, so the path cannot match).
+func matchPathAnchored(path SubcommandPath, args []string) bool {
+	if len(path) == 0 {
 		return false
 	}
-	return slices.Contains(wants, args[0])
+	if len(args) < len(path) {
+		return false
+	}
+	for i, v := range path {
+		if args[i] != v {
+			return false
+		}
+	}
+	return true
 }
 
 func canonicalizeFlags(flags map[string]struct{}, aliases flagnorm.Aliases) map[string]struct{} {

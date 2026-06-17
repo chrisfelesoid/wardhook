@@ -99,6 +99,9 @@ func validate(cfg *Config) error {
 		if err := validateSubcommandsTool(i, &r); err != nil {
 			return err
 		}
+		if err := validateSubcommandPaths(i, &r); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -200,6 +203,42 @@ func validateSubcommandsTool(ruleIdx int, r *Rule) error {
 		return fmt.Errorf(
 			"rules[%d] %q: subcommands_any/subcommands_all is only valid for tool: Bash (got tool: %q)",
 			ruleIdx, r.Name, r.Tool)
+	}
+	return nil
+}
+
+// validateSubcommandPaths checks that every SubcommandPath in match/except
+// is non-empty and contains no empty verb strings. Empty paths or empty
+// verbs are configuration errors because they have no useful semantics
+// and most likely indicate a typo in the YAML.
+func validateSubcommandPaths(ruleIdx int, r *Rule) error {
+	if err := checkPaths(ruleIdx, "match.subcommands_any", r.Match.SubcommandsAny); err != nil {
+		return err
+	}
+	if err := checkPaths(ruleIdx, "match.subcommands_all", r.Match.SubcommandsAll); err != nil {
+		return err
+	}
+	if r.Except != nil {
+		if err := checkPaths(ruleIdx, "except.subcommands_any", r.Except.SubcommandsAny); err != nil {
+			return err
+		}
+		if err := checkPaths(ruleIdx, "except.subcommands_all", r.Except.SubcommandsAll); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func checkPaths(ruleIdx int, where string, paths SubcommandPaths) error {
+	for i, p := range paths {
+		if len(p) == 0 {
+			return fmt.Errorf("rules[%d].%s[%d]: empty verb path is not allowed", ruleIdx, where, i)
+		}
+		for j, v := range p {
+			if v == "" {
+				return fmt.Errorf("rules[%d].%s[%d][%d]: empty verb is not allowed", ruleIdx, where, i, j)
+			}
+		}
 	}
 	return nil
 }

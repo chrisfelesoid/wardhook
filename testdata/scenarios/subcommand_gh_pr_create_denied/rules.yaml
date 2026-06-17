@@ -1,0 +1,13 @@
+version: 1
+defaults:
+  cli_specs:
+    gh:
+      value_taking_flags: [title]
+rules:
+  - name: deny-gh-pr-create
+    tool: Bash
+    match:
+      command: gh
+      subcommands_any:
+        - [pr, create]
+    action: deny

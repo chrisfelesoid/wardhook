@@ -1,0 +1,10 @@
+version: 1
+rules:
+  - name: deny-gh-except-pr-create
+    tool: Bash
+    match:
+      command: gh
+    except:
+      subcommands_any:
+        - [pr, create]
+    action: deny

@@ -475,3 +475,32 @@ func TestRunTest_BashParseErrorReturnsExit3(t *testing.T) {
 		t.Errorf("stderr: %q", errStr)
 	}
 }
+
+func TestRunTest_TraceShowsNestedSubcommandPathInExcept(t *testing.T) {
+	t.Parallel()
+	cfg := writeConfig(t, []string{
+		"version: 1",
+		"rules:",
+		"  - name: deny-gh-except-pr-create",
+		"    tool: Bash",
+		"    match:",
+		"      command: gh",
+		"    except:",
+		"      subcommands_any:",
+		"        - [pr, create]",
+		"    action: deny",
+	})
+	code, out, errStr := runTestCmd(t, []string{
+		"wardhook", "test", "--config", cfg,
+		"--rule", "deny-gh-except-pr-create", "gh pr create --title hi",
+	})
+	if code != 0 {
+		t.Fatalf("exit %d (stderr=%s)", code, errStr)
+	}
+	if !strings.Contains(out, "EXCEPT (subcommands_any [[pr create]])") {
+		t.Errorf("trace should render nested subcommand path; got:\n%s", out)
+	}
+	if !strings.Contains(out, "final: allow") {
+		t.Errorf("rule was excepted; final should be allow:\n%s", out)
+	}
+}

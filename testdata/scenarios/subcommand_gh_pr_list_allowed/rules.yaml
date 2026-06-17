@@ -1,0 +1,9 @@
+version: 1
+rules:
+  - name: deny-gh-pr-create
+    tool: Bash
+    match:
+      command: gh
+      subcommands_any:
+        - [pr, create]
+    action: deny

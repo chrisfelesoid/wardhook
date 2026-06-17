@@ -83,10 +83,10 @@ func formatExceptDetail(spec *MatchSpec) string {
 		return fmt.Sprintf("flags_any %v", spec.FlagsAny)
 	}
 	if len(spec.SubcommandsAll) > 0 {
-		return fmt.Sprintf("subcommands_all %v", spec.SubcommandsAll)
+		return fmt.Sprintf("subcommands_all %s", formatSubcommandPaths(spec.SubcommandsAll))
 	}
 	if len(spec.SubcommandsAny) > 0 {
-		return fmt.Sprintf("subcommands_any %v", spec.SubcommandsAny)
+		return fmt.Sprintf("subcommands_any %s", formatSubcommandPaths(spec.SubcommandsAny))
 	}
 	if len(spec.FlagValues) > 0 {
 		return fmt.Sprintf("flag_values[%s]", spec.FlagValues[0].Name)
@@ -98,4 +98,26 @@ func formatExceptDetail(spec *MatchSpec) string {
 		return fmt.Sprintf("regex %q", spec.Regex.Patterns[0])
 	}
 	return ""
+}
+
+// formatSubcommandPaths renders SubcommandPaths in either flat or
+// nested form. When every path has length 1, the flat form is used
+// (e.g. "[push fetch]") to preserve the look of legacy fixtures.
+// Otherwise the nested form is used (e.g. "[[pr create] [issue list]]").
+func formatSubcommandPaths(paths SubcommandPaths) string {
+	allSingle := true
+	for _, p := range paths {
+		if len(p) != 1 {
+			allSingle = false
+			break
+		}
+	}
+	if allSingle {
+		flat := make([]string, len(paths))
+		for i, p := range paths {
+			flat[i] = p[0]
+		}
+		return fmt.Sprintf("%v", flat)
+	}
+	return fmt.Sprintf("%v", paths)
 }

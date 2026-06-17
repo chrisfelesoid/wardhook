@@ -36,19 +36,19 @@ func TestFormatExceptDetail_PicksFirstNonEmptyClause(t *testing.T) {
 		},
 		{
 			name: "subcommands_all when no command/flags",
-			spec: rule.MatchSpec{SubcommandsAll: []string{"push"}},
+			spec: rule.MatchSpec{SubcommandsAll: rule.SubcommandPaths{{"push"}}},
 			want: "subcommands_all [push]",
 		},
 		{
 			name: "subcommands_any when no command/flags/subcommands_all",
-			spec: rule.MatchSpec{SubcommandsAny: []string{"status", "log"}},
+			spec: rule.MatchSpec{SubcommandsAny: rule.SubcommandPaths{{"status"}, {"log"}}},
 			want: "subcommands_any [status log]",
 		},
 		{
 			name: "flags_any precedes subcommands_any (existing order preserved)",
 			spec: rule.MatchSpec{
 				FlagsAny:       []string{"force"},
-				SubcommandsAny: []string{"push"},
+				SubcommandsAny: rule.SubcommandPaths{{"push"}},
 			},
 			want: "flags_any [force]",
 		},
@@ -65,6 +65,37 @@ func TestFormatExceptDetail_PicksFirstNonEmptyClause(t *testing.T) {
 				Mode: rule.GlobModeAny, Patterns: []string{"^777$"},
 			}},
 			want: `regex "^777$"`,
+		},
+		{
+			name: "subcommands_any depth-1 nested prints flat form",
+			spec: rule.MatchSpec{
+				SubcommandsAny: rule.SubcommandPaths{{"push"}, {"fetch"}},
+			},
+			want: "subcommands_any [push fetch]",
+		},
+		{
+			name: "subcommands_any depth-2 prints nested form",
+			spec: rule.MatchSpec{
+				SubcommandsAny: rule.SubcommandPaths{{"pr", "create"}},
+			},
+			want: "subcommands_any [[pr create]]",
+		},
+		{
+			name: "subcommands_any mixed depths prints nested form",
+			spec: rule.MatchSpec{
+				SubcommandsAny: rule.SubcommandPaths{
+					{"pr", "create"},
+					{"issue", "list"},
+				},
+			},
+			want: "subcommands_any [[pr create] [issue list]]",
+		},
+		{
+			name: "subcommands_all depth-2 prints nested form",
+			spec: rule.MatchSpec{
+				SubcommandsAll: rule.SubcommandPaths{{"pr", "create"}},
+			},
+			want: "subcommands_all [[pr create]]",
 		},
 		{
 			name: "empty spec produces empty string",
