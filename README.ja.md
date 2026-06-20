@@ -78,6 +78,16 @@ rules:
         mode: any
         patterns: ["**/.env", "**/.env.*", "~/.ssh/**", "~/.aws/**"]
     action: deny
+
+  - name: prefer-git-over-gh
+    tool: Bash
+    match:
+      command: gh
+    action: deny
+    reason: gh is not available
+    message: |
+      Use the git CLI for repository operations.
+      For PR / issue operations, ask the user to run gh on their side.
 ```
 
 ### 3. 設定確認
@@ -222,6 +232,7 @@ rules: [ ... ]                # 必須、ルールのリスト
 | `except` | `MatchSpec` | no | マッチを打ち消す副条件 |
 | `action` | `string` | yes | `allow` / `deny` / `ask` |
 | `reason` | `string` | no | カスタムの人間可読な説明 |
+| `message` | `string` | no | AI エージェントへの誘導文。`PermissionDecisionReason` の `reason` 行の次行に `Hint:` プレフィックス付きで追加される。代替手段の提示に使う (例: 「`gh` の代わりに `git` を使う」)。集約時は勝者ルールの `message` のみ出力。 |
 
 ### `MatchSpec`
 

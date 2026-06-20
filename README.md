@@ -78,6 +78,16 @@ rules:
         mode: any
         patterns: ["**/.env", "**/.env.*", "~/.ssh/**", "~/.aws/**"]
     action: deny
+
+  - name: prefer-git-over-gh
+    tool: Bash
+    match:
+      command: gh
+    action: deny
+    reason: gh is not available
+    message: |
+      Use the git CLI for repository operations.
+      For PR / issue operations, ask the user to run gh on their side.
 ```
 
 ### 3. Validate
@@ -222,6 +232,7 @@ rules: [ ... ]                # required, list of rules
 | `except` | `MatchSpec` | no | Sub-conditions that cancel the match |
 | `action` | `string` | yes | `allow` / `deny` / `ask` |
 | `reason` | `string` | no | Custom human-readable explanation |
+| `message` | `string` | no | Guidance for the AI agent. Appended to `PermissionDecisionReason` on the line after `reason` with a `Hint:` prefix. Use it to point the agent at an alternative (e.g. "use `git` instead of `gh`"). Aggregation: only the winning rule's `message` is shown. |
 
 ### `MatchSpec`
 
