@@ -28,12 +28,13 @@ type Defaults struct {
 
 // Rule is a single match-and-decide entry.
 type Rule struct {
-	Name   string        `yaml:"name"`
-	Tool   string        `yaml:"tool"`
-	Match  MatchSpec     `yaml:"match"`
-	Except *MatchSpec    `yaml:"except,omitempty"`
-	Action hook.Decision `yaml:"action"`
-	Reason string        `yaml:"reason,omitempty"`
+	Name    string        `yaml:"name"`
+	Tool    string        `yaml:"tool"`
+	Match   MatchSpec     `yaml:"match"`
+	Except  *MatchSpec    `yaml:"except,omitempty"`
+	Action  hook.Decision `yaml:"action"`
+	Reason  string        `yaml:"reason,omitempty"`
+	Message string        `yaml:"message,omitempty"`
 }
 
 // MatchSpec describes the predicates a parsed command must satisfy.
