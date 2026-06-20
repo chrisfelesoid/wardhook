@@ -246,7 +246,7 @@ func (r *repeatableStrings) Set(v string) error {
 func runTest(stdout, stderr io.Writer, args []string) int {
 	fs := flag.NewFlagSet(testSubcommand, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	configPath := fs.String("config", defaultConfigPath, "path to wardhook.yaml")
+	configPath := fs.String("config", "", "path to wardhook.yaml (searches standard locations if omitted)")
 	var ruleNames repeatableStrings
 	fs.Var(&ruleNames, "rule", "rule name to evaluate (repeatable)")
 	toolFlag := fs.String("tool", "", "tool name to evaluate as (default Bash)")
@@ -260,7 +260,13 @@ func runTest(stdout, stderr io.Writer, args []string) int {
 	}
 	commandStr := fs.Arg(0)
 
-	cfg, err := rule.Load(*configPath)
+	resolved, found := resolveConfigPath(*configPath)
+	if !found {
+		fmt.Fprintln(stderr, "[wardhook] no config found in standard locations")
+		return exitTestArgError
+	}
+
+	cfg, err := rule.Load(resolved)
 	if err != nil {
 		fmt.Fprintf(stderr, "[wardhook] config error: %v\n", err)
 		return exitTestArgError
@@ -296,7 +302,7 @@ func runTest(stdout, stderr io.Writer, args []string) int {
 	}
 	trace := rule.EvaluateTrace(cfgEval, toolName, cmds)
 	formatTrace(stdout, headerInfo{
-		ConfigPath:        *configPath,
+		ConfigPath:        resolved,
 		Tool:              toolName,
 		SelectedRuleNames: ruleNames,
 		TotalRules:        len(cfg.Rules),
