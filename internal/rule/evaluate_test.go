@@ -137,3 +137,109 @@ func TestEvaluate_InspectionFailedDoesNotOverrideDeny(t *testing.T) {
 		t.Errorf("decision: got %q, want deny", dec)
 	}
 }
+
+func TestEvaluate_MessageOnly_AppendsHint(t *testing.T) {
+	t.Parallel()
+	c := cfg(rule.Rule{
+		Name:    "prefer-git-over-gh",
+		Tool:    "Bash",
+		Match:   rule.MatchSpec{Command: "gh"},
+		Action:  hook.DecisionDeny,
+		Message: "Use the git CLI instead.",
+	})
+	_, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("gh", nil, nil)})
+	want := "[wardhook] denied by rule \"prefer-git-over-gh\": gh\nHint: Use the git CLI instead."
+	if reason != want {
+		t.Errorf("reason mismatch:\n got: %q\nwant: %q", reason, want)
+	}
+}
+
+func TestEvaluate_ReasonAndMessage_BothShown(t *testing.T) {
+	t.Parallel()
+	c := cfg(rule.Rule{
+		Name:    "prefer-git-over-gh",
+		Tool:    "Bash",
+		Match:   rule.MatchSpec{Command: "gh"},
+		Action:  hook.DecisionDeny,
+		Reason:  "gh is not available",
+		Message: "Use the git CLI instead.",
+	})
+	_, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("gh", nil, nil)})
+	want := "[wardhook] denied by rule \"prefer-git-over-gh\": gh: gh is not available\nHint: Use the git CLI instead."
+	if reason != want {
+		t.Errorf("reason mismatch:\n got: %q\nwant: %q", reason, want)
+	}
+}
+
+func TestEvaluate_MultilineMessage_PreservesNewlines(t *testing.T) {
+	t.Parallel()
+	c := cfg(rule.Rule{
+		Name:    "r1",
+		Tool:    "Bash",
+		Match:   rule.MatchSpec{Command: "gh"},
+		Action:  hook.DecisionDeny,
+		Message: "line1\nline2",
+	})
+	_, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("gh", nil, nil)})
+	if !strings.Contains(reason, "\nHint: line1\nline2") {
+		t.Errorf("multiline hint not preserved: %q", reason)
+	}
+}
+
+func TestEvaluate_EmptyMessage_NoHintLine(t *testing.T) {
+	t.Parallel()
+	c := cfg(rule.Rule{
+		Name:   "r1",
+		Tool:   "Bash",
+		Match:  rule.MatchSpec{Command: "gh"},
+		Action: hook.DecisionDeny,
+	})
+	_, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("gh", nil, nil)})
+	if strings.Contains(reason, "Hint:") {
+		t.Errorf("empty message should not produce Hint line: %q", reason)
+	}
+}
+
+func TestEvaluate_MultipleRulesMatch_OnlyWinnerMessage(t *testing.T) {
+	t.Parallel()
+	c := cfg(
+		rule.Rule{
+			Name: "allow-rule", Tool: "Bash",
+			Match: rule.MatchSpec{Command: "gh"}, Action: hook.DecisionAllow,
+			Message: "loser hint",
+		},
+		rule.Rule{
+			Name: "deny-rule", Tool: "Bash",
+			Match: rule.MatchSpec{Command: "gh"}, Action: hook.DecisionDeny,
+			Message: "winner hint",
+		},
+	)
+	dec, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("gh", nil, nil)})
+	if dec != hook.DecisionDeny {
+		t.Fatalf("decision: %q", dec)
+	}
+	if !strings.Contains(reason, "winner hint") {
+		t.Errorf("winner hint missing: %q", reason)
+	}
+	if strings.Contains(reason, "loser hint") {
+		t.Errorf("loser hint should not appear: %q", reason)
+	}
+}
+
+func TestEvaluate_AskActionWithMessage_AppendsHint(t *testing.T) {
+	t.Parallel()
+	c := cfg(rule.Rule{
+		Name:    "r1",
+		Tool:    "Bash",
+		Match:   rule.MatchSpec{Command: "rm"},
+		Action:  hook.DecisionAsk,
+		Message: "double-check the target path",
+	})
+	dec, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("rm", nil, nil)})
+	if dec != hook.DecisionAsk {
+		t.Fatalf("decision: %q", dec)
+	}
+	if !strings.Contains(reason, "\nHint: double-check the target path") {
+		t.Errorf("ask + message should append Hint: %q", reason)
+	}
+}
