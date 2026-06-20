@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	defaultConfigPath       = "./wardhook.yaml"
 	debugEnvVar             = "WARDHOOK_DEBUG"
 	minArgsForSubcommand    = 2
 	exitValidateConfigError = 1
