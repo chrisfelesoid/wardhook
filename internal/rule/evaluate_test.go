@@ -243,3 +243,19 @@ func TestEvaluate_AskActionWithMessage_AppendsHint(t *testing.T) {
 		t.Errorf("ask + message should append Hint: %q", reason)
 	}
 }
+
+func TestEvaluate_TrailingNewlineMessage_PassesThroughVerbatim(t *testing.T) {
+	t.Parallel()
+	c := cfg(rule.Rule{
+		Name:    "r1",
+		Tool:    "Bash",
+		Match:   rule.MatchSpec{Command: "gh"},
+		Action:  hook.DecisionDeny,
+		Message: "line1\nline2\n",
+	})
+	_, reason := rule.Evaluate(c, "Bash", []parser.Command{mkCmd("gh", nil, nil)})
+	want := "[wardhook] denied by rule \"r1\": gh\nHint: line1\nline2\n"
+	if reason != want {
+		t.Errorf("trailing newline not preserved verbatim:\n got: %q\nwant: %q", reason, want)
+	}
+}
