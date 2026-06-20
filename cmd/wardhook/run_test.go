@@ -659,6 +659,38 @@ func TestRun_AllowsWhenNoConfigInStandardLocations(t *testing.T) {
 }
 
 //nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestValidate_DiscoversWardhookYaml(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	body := strings.Join([]string{
+		"version: 1",
+		"rules: []",
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "wardhook.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	code, out, _ := runOnce(t, []string{"wardhook", "validate"}, "")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0", code)
+	}
+	if !strings.Contains(out, "OK") {
+		t.Errorf("stdout missing OK: %q", out)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestValidate_NoConfigInStandardLocationsErrors(t *testing.T) {
+	t.Chdir(t.TempDir())
+	code, _, errStr := runOnce(t, []string{"wardhook", "validate"}, "")
+	if code != exitValidateConfigError {
+		t.Errorf("exit %d, want %d", code, exitValidateConfigError)
+	}
+	if !strings.Contains(errStr, "no config found in standard locations") {
+		t.Errorf("stderr missing search-miss message: %q", errStr)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
 func TestRun_DiscoversDotAgentsWardhookYaml(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)

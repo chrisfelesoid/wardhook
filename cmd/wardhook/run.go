@@ -198,11 +198,16 @@ func debugLogf(stderr io.Writer, format string, args ...any) {
 func runValidateWithIO(stdout, stderr io.Writer, args []string) int {
 	fs := flag.NewFlagSet(validateSubcommand, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	configPath := fs.String("config", defaultConfigPath, "path to wardhook.yaml")
+	configPath := fs.String("config", "", "path to wardhook.yaml (searches standard locations if omitted)")
 	if err := fs.Parse(args); err != nil {
 		return exitValidateFlagError
 	}
-	if _, err := rule.Load(*configPath); err != nil {
+	resolved, found := resolveConfigPath(*configPath)
+	if !found {
+		fmt.Fprintln(stderr, "[wardhook] no config found in standard locations")
+		return exitValidateConfigError
+	}
+	if _, err := rule.Load(resolved); err != nil {
 		fmt.Fprintf(stderr, "[wardhook] validate error: %v\n", err)
 		return exitValidateConfigError
 	}
