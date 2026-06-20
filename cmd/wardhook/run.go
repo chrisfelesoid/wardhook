@@ -15,7 +15,6 @@ import (
 )
 
 const (
-	defaultConfigPath       = "./wardhook.yaml"
 	debugEnvVar             = "WARDHOOK_DEBUG"
 	minArgsForSubcommand    = 2
 	exitValidateConfigError = 1
@@ -68,7 +67,7 @@ func runHook(p provider.Provider, stdin io.Reader, stdout, stderr io.Writer, fla
 
 	fs := flag.NewFlagSet("wardhook", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	configPath := fs.String("config", defaultConfigPath, "path to wardhook.yaml")
+	configPath := fs.String("config", "", "path to wardhook.yaml (searches standard locations if omitted)")
 	if err := fs.Parse(flags); err != nil {
 		writeAsk(p, stdout, fmt.Sprintf("[wardhook] flag error: %v", err))
 		return 0
@@ -82,10 +81,18 @@ func runHook(p provider.Provider, stdin io.Reader, stdout, stderr io.Writer, fla
 	}
 	debugLogf(stderr, "provider=%s invocations=%d", p.Name(), len(invs))
 
-	cfg, err := rule.Load(*configPath)
+	resolved, found := resolveConfigPath(*configPath)
+	if !found {
+		fmt.Fprintln(stderr, "[wardhook] no config found in standard locations (allowing)")
+		writeAllow(p, stdout, "")
+		return 0
+	}
+	debugLogf(stderr, "resolved config: %s", resolved)
+
+	cfg, err := rule.Load(resolved)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			fmt.Fprintf(stderr, "[wardhook] no config at %s (allowing)\n", *configPath)
+			fmt.Fprintf(stderr, "[wardhook] no config at %s (allowing)\n", resolved)
 			writeAllow(p, stdout, "")
 			return 0
 		}
@@ -93,7 +100,7 @@ func runHook(p provider.Provider, stdin io.Reader, stdout, stderr io.Writer, fla
 		writeAsk(p, stdout, fmt.Sprintf("[wardhook] config error: %v", err))
 		return 0
 	}
-	debugLogf(stderr, "loaded %d rules from %s", len(cfg.Rules), *configPath)
+	debugLogf(stderr, "loaded %d rules from %s", len(cfg.Rules), resolved)
 
 	finalDec := hook.DecisionAllow
 	finalReason := ""
@@ -190,11 +197,16 @@ func debugLogf(stderr io.Writer, format string, args ...any) {
 func runValidateWithIO(stdout, stderr io.Writer, args []string) int {
 	fs := flag.NewFlagSet(validateSubcommand, flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	configPath := fs.String("config", defaultConfigPath, "path to wardhook.yaml")
+	configPath := fs.String("config", "", "path to wardhook.yaml (searches standard locations if omitted)")
 	if err := fs.Parse(args); err != nil {
 		return exitValidateFlagError
 	}
-	if _, err := rule.Load(*configPath); err != nil {
+	resolved, found := resolveConfigPath(*configPath)
+	if !found {
+		fmt.Fprintln(stderr, "[wardhook] no config found in standard locations")
+		return exitValidateConfigError
+	}
+	if _, err := rule.Load(resolved); err != nil {
 		fmt.Fprintf(stderr, "[wardhook] validate error: %v\n", err)
 		return exitValidateConfigError
 	}

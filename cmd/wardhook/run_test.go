@@ -610,3 +610,117 @@ func TestRun_DispatchAntigravity_EditFile_CrossToolEnvDeny(t *testing.T) {
 		t.Errorf("decision: %q (out=%s)", o.Decision, out)
 	}
 }
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestRun_DiscoversWardhookYamlInCWD(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm",
+		"    tool: Bash",
+		"    match:",
+		"      command: rm",
+		"      flags_all: [r, f]",
+		"    action: deny",
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "wardhook.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	stdin := `{"session_id":"s","cwd":"/workspace","tool_name":"Bash","tool_input":{"command":"rm -fr ./foo"}}`
+	code, out, _ := runOnce(t, []string{"wardhook"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "deny" {
+		t.Errorf("decision: %q, want deny (discovered config should deny)", o.HookSpecificOutput.PermissionDecision)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestRun_AllowsWhenNoConfigInStandardLocations(t *testing.T) {
+	t.Chdir(t.TempDir())
+	stdin := `{"session_id":"s","cwd":"/workspace","tool_name":"Bash","tool_input":{"command":"ls"}}`
+	code, out, errStr := runOnce(t, []string{"wardhook"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "allow" {
+		t.Errorf("decision: %q, want allow", o.HookSpecificOutput.PermissionDecision)
+	}
+	if !strings.Contains(errStr, "no config found in standard locations") {
+		t.Errorf("stderr missing search-miss message: %q", errStr)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestValidate_DiscoversWardhookYaml(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	body := strings.Join([]string{
+		"version: 1",
+		"rules: []",
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "wardhook.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	code, out, _ := runOnce(t, []string{"wardhook", "validate"}, "")
+	if code != 0 {
+		t.Fatalf("exit %d, want 0", code)
+	}
+	if !strings.Contains(out, "OK") {
+		t.Errorf("stdout missing OK: %q", out)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestValidate_NoConfigInStandardLocationsErrors(t *testing.T) {
+	t.Chdir(t.TempDir())
+	code, _, errStr := runOnce(t, []string{"wardhook", "validate"}, "")
+	if code != exitValidateConfigError {
+		t.Errorf("exit %d, want %d", code, exitValidateConfigError)
+	}
+	if !strings.Contains(errStr, "no config found in standard locations") {
+		t.Errorf("stderr missing search-miss message: %q", errStr)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestRun_DiscoversDotAgentsWardhookYaml(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	if err := os.MkdirAll(filepath.Join(dir, ".agents"), 0o700); err != nil {
+		t.Fatalf("mkdir: %v", err)
+	}
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm",
+		"    tool: Bash",
+		"    match:",
+		"      command: rm",
+		"      flags_all: [r, f]",
+		"    action: deny",
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, ".agents", "wardhook.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	stdin := `{"session_id":"s","cwd":"/workspace","tool_name":"Bash","tool_input":{"command":"rm -fr ./foo"}}`
+	code, out, _ := runOnce(t, []string{"wardhook"}, stdin)
+	if code != 0 {
+		t.Fatalf("exit code: %d", code)
+	}
+	var o hookOut
+	_ = json.Unmarshal([]byte(out), &o)
+	if o.HookSpecificOutput.PermissionDecision != "deny" {
+		t.Errorf(
+			"decision: %q, want deny (.agents/wardhook.yaml should be discovered)",
+			o.HookSpecificOutput.PermissionDecision,
+		)
+	}
+}

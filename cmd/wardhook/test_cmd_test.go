@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -473,6 +475,47 @@ func TestRunTest_BashParseErrorReturnsExit3(t *testing.T) {
 	}
 	if !strings.Contains(errStr, "parse") {
 		t.Errorf("stderr: %q", errStr)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestRunTest_DiscoversWardhookYaml(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: block-rm",
+		"    tool: Bash",
+		"    match:",
+		"      command: rm",
+		"      flags_all: [r, f]",
+		"    action: deny",
+	}, "\n") + "\n"
+	if err := os.WriteFile(filepath.Join(dir, "wardhook.yaml"), []byte(body), 0o600); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	code, out, _ := runTestCmd(t, []string{"wardhook", "test", "rm -fr ./x"})
+	if code != 0 {
+		t.Fatalf("exit %d, want 0", code)
+	}
+	if !strings.Contains(out, "config: wardhook.yaml") {
+		t.Errorf("stdout missing resolved config line: %q", out)
+	}
+	if !strings.Contains(out, "final: deny") {
+		t.Errorf("stdout missing final deny: %q", out)
+	}
+}
+
+//nolint:paralleltest // t.Chdir forbids t.Parallel
+func TestRunTest_NoConfigInStandardLocationsErrors(t *testing.T) {
+	t.Chdir(t.TempDir())
+	code, _, errStr := runTestCmd(t, []string{"wardhook", "test", "rm -fr ./x"})
+	if code != exitTestArgError {
+		t.Errorf("exit %d, want %d", code, exitTestArgError)
+	}
+	if !strings.Contains(errStr, "no config found in standard locations") {
+		t.Errorf("stderr missing search-miss message: %q", errStr)
 	}
 }
 
