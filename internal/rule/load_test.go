@@ -1209,3 +1209,44 @@ func TestLoad_Subcommands_NestedInExceptOnNonBashTool_Error(t *testing.T) {
 		t.Errorf("error should mention Bash-only constraint: %v", err)
 	}
 }
+
+func TestLoad_RuleWithMessage(t *testing.T) {
+	t.Parallel()
+	body := strings.Join([]string{
+		"version: 1",
+		"rules:",
+		"  - name: r1",
+		"    tool: Bash",
+		"    match: {command: gh}",
+		"    action: deny",
+		"    message: |",
+		"      Use the git CLI instead.",
+		"      For PR ops, ask the user.",
+		"",
+	}, "\n")
+	p := writeYAML(t, body)
+	cfg, err := rule.Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if len(cfg.Rules) != 1 {
+		t.Fatalf("rules: %d", len(cfg.Rules))
+	}
+	got := cfg.Rules[0].Message
+	want := "Use the git CLI instead.\nFor PR ops, ask the user.\n"
+	if got != want {
+		t.Errorf("Message: got %q, want %q", got, want)
+	}
+}
+
+func TestLoad_RuleWithoutMessage(t *testing.T) {
+	t.Parallel()
+	p := writeYAML(t, yamlMinimal())
+	cfg, err := rule.Load(p)
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Rules[0].Message != "" {
+		t.Errorf("Message should be empty: %q", cfg.Rules[0].Message)
+	}
+}

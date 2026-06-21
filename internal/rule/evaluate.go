@@ -147,5 +147,9 @@ func formatReason(r Rule, cmd parser.Command) string {
 	if raw == "" {
 		raw = cmd.Name
 	}
-	return fmt.Sprintf(`[wardhook] %s by rule %q: %s%s`, verb, r.Name, raw, custom)
+	out := fmt.Sprintf(`[wardhook] %s by rule %q: %s%s`, verb, r.Name, raw, custom)
+	if r.Message != "" {
+		out += "\nHint: " + r.Message
+	}
+	return out
 }
